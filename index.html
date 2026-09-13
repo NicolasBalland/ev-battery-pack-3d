@@ -1,0 +1,2403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Battery Pack 49 kWh - 3D Interactive Architecture & BTMS Simulation</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="alternate icon" type="image/png" href="./favicon.png">
+    <link rel="shortcut icon" href="./favicon.ico">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { overflow: hidden; background: #050608; color: #f0f4f8; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+        
+        /* Loading Overlay */
+        #loader-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050608; z-index: 2000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; transition: opacity 0.6s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid rgba(0, 229, 255, 0.15);
+            border-top-color: #00e5ff; border-radius: 50%; animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loader-text { font-size: 0.9rem; color: #38bdf8; font-weight: 600; letter-spacing: 0.05em; }
+
+        #ui-overlay {
+            position: absolute; top: 18px; left: 18px; z-index: 10;
+            background: rgba(13, 18, 28, 0.94); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px;
+            padding: 20px; width: 430px; max-height: calc(100vh - 36px); overflow-y: auto;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.75);
+        }
+        #ui-overlay::-webkit-scrollbar { width: 4px; }
+        #ui-overlay::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .badge {
+            display: inline-block; padding: 3px 8px; border-radius: 4px;
+            background: rgba(0, 229, 255, 0.15); color: #00e5ff;
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .lang-switch { display: flex; gap: 4px; background: #192233; padding: 3px; border-radius: 6px; border: 1px solid #2d3b55; }
+        .lang-btn {
+            background: transparent; border: none; color: #8899a6; font-size: 0.72rem; font-weight: 700;
+            padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;
+        }
+        .lang-btn.active { background: #00e5ff; color: #070a10; }
+
+        h1 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 4px; letter-spacing: -0.02em; }
+        .pack-meta-pill {
+            display: block; font-size: 0.72rem; color: #38bdf8; margin-bottom: 12px;
+            background: rgba(56, 189, 248, 0.1); padding: 4px 8px; border-radius: 4px;
+        }
+
+        .section-title {
+            font-size: 0.70rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;
+            letter-spacing: 0.06em; margin: 12px 0 6px 0; display: flex; align-items: center; gap: 6px;
+        }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+
+        /* Boutons de vues rapides */
+        .view-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+        .view-btn {
+            background: #182232; border: 1px solid #2d3b55; color: #cbd5e1;
+            padding: 7px 4px; border-radius: 6px; font-size: 0.70rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .view-btn:hover { background: #25334c; color: #fff; border-color: #00e5ff; }
+        .view-btn.active { background: #00e5ff; color: #070a10; border-color: #00e5ff; font-weight: 700; }
+
+        /* Slider */
+        .slider-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
+        input[type="range"] {
+            width: 100%; -webkit-appearance: none; appearance: none; height: 5px;
+            border-radius: 3px; background: #232d3f; outline: none; margin-bottom: 12px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+            border-radius: 50%; background: #00e5ff; cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
+        }
+
+        /* Module Thermique BTMS */
+        .thermal-box {
+            background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px; padding: 10px; margin-bottom: 12px;
+        }
+        .thermal-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btms-btn {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 8px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; border: 1px solid transparent; transition: all 0.25s;
+        }
+        .btms-btn-cool { background: rgba(0, 85, 255, 0.15); color: #3b82f6; border-color: rgba(0, 85, 255, 0.4); }
+        .btms-btn-cool:hover { background: rgba(0, 85, 255, 0.28); border-color: #0055ff; color: #fff; }
+        .btms-btn-cool.active { background: #0055ff; color: #fff; font-weight: 700; box-shadow: 0 0 16px rgba(0,85,255,0.7); }
+
+        .btms-btn-heat { background: rgba(230, 81, 0, 0.16); color: #ff6d00; border-color: rgba(230, 81, 0, 0.4); }
+        .btms-btn-heat:hover { background: rgba(230, 81, 0, 0.28); border-color: #e65100; color: #fff; }
+        .btms-btn-heat.active { background: #e65100; color: #fff; font-weight: 700; box-shadow: 0 0 20px rgba(230, 81, 0, 0.85); }
+
+        .telemetry-bar {
+            display: none; margin-top: 8px; padding: 7px 10px; border-radius: 6px;
+            font-size: 0.70rem; line-height: 1.4; border-left: 3px solid #0055ff;
+            background: rgba(10, 16, 26, 0.9);
+        }
+        .telemetry-cooling { border-left-color: #0055ff; color: #60a5fa; }
+        .telemetry-heating { border-left-color: #e65100; color: #ff8a50; }
+
+        /* Sélecteur de composant */
+        .comp-select-wrap { margin-bottom: 10px; }
+        select.comp-dropdown {
+            width: 100%; background: #162032; border: 1px solid #334155; border-radius: 6px;
+            color: #f1f5f9; padding: 7px 10px; font-size: 0.75rem; outline: none; cursor: pointer;
+        }
+
+        #info-card {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px; padding: 12px; margin-top: 4px;
+        }
+        .comp-title { font-size: 0.88rem; font-weight: 700; color: #38bdf8; margin-bottom: 2px; display: block; }
+        .comp-category { font-size: 0.68rem; color: #94a3b8; margin-bottom: 4px; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+        .comp-material { font-size: 0.72rem; color: #e2e8f0; margin-bottom: 6px; display: block; }
+        #infoDesc { font-size: 0.72rem; line-height: 1.4; color: #94a3b8; margin-bottom: 8px; }
+        .specs-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.68rem;
+            background: rgba(10, 16, 26, 0.6); padding: 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .specs-grid div { display: flex; flex-direction: column; }
+        .specs-grid strong { color: #cbd5e1; font-weight: 600; }
+        .specs-grid span { color: #00e5ff; font-weight: 500; }
+
+        /* Tooltip */
+        #tooltip {
+            position: absolute; display: none; pointer-events: none; z-index: 100;
+            background: rgba(13, 18, 28, 0.95); border: 1px solid #00e5ff; border-radius: 6px;
+            padding: 5px 9px; font-size: 0.72rem; font-weight: 600; color: #fff;
+            transform: translate(-50%, -130%); box-shadow: 0 4px 14px rgba(0, 229, 255, 0.4);
+            white-space: nowrap;
+        }
+
+        /* Angles Caméra & Galerie de Référence */
+        .angle-header {
+            font-size: 0.70rem; font-weight: 600; color: #94a3b8; margin: 9px 0 4px 0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .angle-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px;
+        }
+        .angle-btn {
+            background: #111827; border: 1px solid #1f2937; color: #9ca3af;
+            padding: 5px 2px; border-radius: 4px; font-size: 0.64rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .angle-btn:hover { background: #1f2937; color: #f3f4f6; border-color: #38bdf8; }
+        .angle-btn.active { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; font-weight: 700; }
+
+        /* Panneau Admin */
+        #admin-panel {
+            position: absolute; top: 18px; right: 18px; z-index: 20;
+            background: rgba(11, 15, 25, 0.96); backdrop-filter: blur(16px);
+            border: 1px solid #00e5ff; border-radius: 12px;
+            padding: 16px; width: 380px; max-height: calc(100vh - 36px); overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8); display: none;
+        }
+        #admin-panel h2 { font-size: 0.92rem; color: #00e5ff; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .admin-field { margin-bottom: 10px; }
+        .admin-field label { display: block; font-size: 0.68rem; color: #94a3b8; margin-bottom: 3px; }
+        .admin-field input, .admin-field textarea {
+            width: 100%; background: #162032; border: 1px solid #334155; border-radius: 4px;
+            color: #fff; padding: 5px 8px; font-size: 0.72rem; outline: none;
+        }
+        .admin-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .btn-save { background: #00e5ff; color: #070a10; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 700; cursor: pointer; }
+        .btn-export { background: #1e293b; color: #38bdf8; border: 1px solid #38bdf8; padding: 6px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; }
+    .pack-note-pill {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px dashed rgba(148, 163, 184, 0.35);
+            border-radius: 6px;
+            padding: 3px 8px;
+            margin: 4px 0 10px 0;
+            display: inline-block;
+            letter-spacing: 0.2px;
+        }
+        .nav-hints-card {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(10, 15, 29, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 10px;
+            padding: 8px 14px;
+            z-index: 900;
+            pointer-events: auto;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+            font-size: 0.72rem;
+            max-width: 380px;
+        }
+        .nav-hints-title {
+            font-weight: 700;
+            color: #00e5ff;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            font-size: 0.66rem;
+        }
+        .nav-hints-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 10px;
+            color: #cbd5e1;
+        }
+        .nav-hint-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .nav-hint-icon {
+            font-size: 0.72rem;
+        }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="./ev_battery_pack_model_data.js"></script>
+</head>
+<body>
+    <div id="loader-overlay">
+        <div class="spinner"></div>
+        <div id="loader-text">Chargement du modèle 3D haute fidélité (Cycles CAD)...</div>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div id="tooltip">Composant</div>
+
+        <!-- Navigation 3D Guidance Overlay -->
+    <div id="nav-hints-panel" class="nav-hints-card">
+        <div class="nav-hints-title" id="navHintsTitle">🎮 Navigation 3D</div>
+        <div class="nav-hints-grid">
+            <div class="nav-hint-item"><span class="nav-hint-icon">🖱️</span><span id="navHintRotate">Rotation : Clic G + glisser</span></div>
+            <div class="nav-hint-item"><span class="nav-hint-icon">🖱️</span><span id="navHintPan">Déplacement : Clic D + glisser</span></div>
+            <div class="nav-hint-item"><span class="nav-hint-icon">⚙️</span><span id="navHintZoom">Zoom : Molette</span></div>
+            <div class="nav-hint-item"><span class="nav-hint-icon">👆</span><span id="navHintSelect">Sélection : Clic pièce</span></div>
+        </div>
+    </div>
+
+    <!-- UI Utilisateur Principal -->
+    <div id="ui-overlay">
+        <div class="header-row" style="justify-content: flex-end;">
+            <div class="lang-switch">
+                <button class="lang-btn active" id="btnLangFR">FR</button>
+                <button class="lang-btn" id="btnLangEN">EN</button>
+            </div>
+        </div>
+
+        <h1 id="uiMainTitle">Architecture d'un Pack Batterie EV (Véhicule Électrique)</h1>
+        <div class="pack-meta-pill" id="packMetaPill">Pack fictif 49 kWh • 8 Modules • 96 Cellules Prismatiques (96S1P)</div>
+        <div class="pack-note-pill" id="packNotePill">ℹ️ Exemple d’architecture, valeurs illustratives</div>
+
+        <!-- Section 1 : Vues rapides & Éclatement -->
+        <div class="section-title" id="secViewsTitle">1. Vues & Éclatement 3D</div>
+        <div class="view-grid">
+            <button class="view-btn active" id="viewAssembled">📦 Fermé</button>
+            <button class="view-btn" id="viewXRay">👻 Rayons X</button>
+            <button class="view-btn" id="viewExploded">💥 Éclaté</button>
+        </div>
+        <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+            <button class="view-btn active" id="btnToggleCover" style="flex: 1; padding: 6px 10px; font-size: 0.70rem;">👁️ Couvercle : Visible</button>
+        </div>
+        <div class="slider-row">
+            <span id="lblExplode">Décomposition continue :</span>
+            <strong id="sliderVal" style="color: #00e5ff;">0%</strong>
+        </div>
+        <input type="range" id="explodeSlider" min="0" max="100" value="0">
+
+        <!-- Angles de Caméra Spécialisés -->
+        <div class="angle-header">
+            <span id="lblAngleHeader">📐 Angles de Vue Caméra :</span>
+        </div>
+        <div class="angle-grid">
+            <button class="angle-btn active" id="btnAngleIso">📐 Iso 3/4</button>
+            <button class="angle-btn" id="btnAngleTop">🔝 Dessus</button>
+            <button class="angle-btn" id="btnAngleBms">⚡ BMS/HT</button>
+            <button class="angle-btn" id="btnAngleCells">🔬 Modules & Cellules</button>
+            <button class="angle-btn" id="btnAngleTray">🛡️ Châssis & Rails</button>
+        </div>
+
+        <!-- Section 2 : Gestion Thermique BTMS -->
+        <div class="section-title" id="secBtmsTitle">2. Gestion Thermique BTMS (Battery Thermal Management System)</div>
+        <div class="thermal-box">
+            <div class="thermal-btn-row">
+                <button class="btms-btn btms-btn-cool" id="btnCooling">
+                    <span>❄️</span> <span id="lblCooling">Refroidissement Liquide (BTMS)</span>
+                </button>
+                <button class="btms-btn btms-btn-heat" id="btnHeating">
+                    <span>🔥</span> <span id="lblHeating">Préchauffage Électrique PTC</span>
+                </button>
+            </div>
+            <div id="telemetryBox" class="telemetry-bar"></div>
+        </div>
+
+        <!-- Section 3 : Explorateur de Composants -->
+        <div class="section-title" id="secCompTitle">3. Composants & Fiche Technique</div>
+        <div class="comp-select-wrap">
+            <select class="comp-dropdown" id="compSelector"></select>
+        </div>
+
+        <div id="info-card">
+            <strong class="comp-title" id="infoTitle">Couvercle supérieur [1]</strong>
+            <span class="comp-category" id="infoCategory">Enceinte & Structure</span>
+            <span class="comp-material" id="infoMaterial">Matériau : Aluminium embouti 6061-T6</span>
+            <div id="infoDesc">Protection mécanique supérieure de l'enceinte contre les projections et l'eau sous haute pression.</div>
+            <div class="specs-grid" id="infoSpecs"></div>
+        </div>
+    </div>
+
+        <!-- Modale d'Authentification Administrateur (Option B) -->
+    <div id="admin-auth-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.80); backdrop-filter:blur(8px); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:#0f172a; border:1px solid #00e5ff; border-radius:12px; padding:24px; width:340px; box-shadow:0 20px 40px rgba(0,0,0,0.85); text-align:center; position:relative;">
+            <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:6px; font-weight:700;">Accès Administrateur OEM</h3>
+            <p style="color:#94a3b8; font-size:0.75rem; margin-bottom:16px; line-height:1.4;">Saisie du mot de passe requise pour déverrouiller l'édition des spécifications.</p>
+            <input type="password" id="adminPasswordInput" placeholder="Mot de passe..." style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#fff; font-size:0.85rem; margin-bottom:10px; box-sizing:border-box; outline:none;">
+            <div id="adminAuthError" style="color:#f87171; font-size:0.75rem; margin-bottom:12px; display:none; line-height:1.3;"></div>
+            <div style="display:flex; gap:8px;">
+                <button id="btnCancelAuth" style="flex:1; padding:8px; border-radius:6px; border:1px solid #475569; background:#1e293b; color:#cbd5e1; cursor:pointer; font-size:0.8rem; font-weight:600;">Annuler</button>
+                <button id="btnSubmitAuth" style="flex:1; padding:8px; border-radius:6px; border:none; background:#00e5ff; color:#070a10; font-weight:700; cursor:pointer; font-size:0.8rem;">Déverrouiller</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panneau Éditeur Technique Administrateur (Alt + E) -->
+    <div id="admin-panel">
+        <h2>
+            <span style="display:flex; align-items:center; gap:8px;">
+                <span>Éditeur Technique OEM</span>
+                <span style="font-size:0.65rem; background:#059669; color:#fff; padding:2px 6px; border-radius:4px; font-weight:700;">AUTORISÉ</span>
+            </span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button id="btnAdminLogout" style="background:#dc2626; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:0.7rem; cursor:pointer; font-weight:600;" title="Verrouiller la session">🔒 Verrouiller</button>
+                <button id="btnCloseAdmin" style="background:transparent; border:none; color:#888; font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+        </h2>
+        <div class="admin-field">
+            <label>Composant Actif</label>
+            <select class="comp-dropdown" id="adminSelectComp"></select>
+        </div>
+        <div class="admin-field">
+            <label>Dénomination Française (FR)</label>
+            <input type="text" id="adminNameFR">
+        </div>
+        <div class="admin-field">
+            <label>English Component Name (EN)</label>
+            <input type="text" id="adminNameEN">
+        </div>
+        <div class="admin-field">
+            <label>Matériau / Traitement (FR)</label>
+            <input type="text" id="adminMaterialFR">
+        </div>
+        <div class="admin-field">
+            <label>Material / Composition (EN)</label>
+            <input type="text" id="adminMaterialEN">
+        </div>
+        <div class="admin-field">
+            <label>Spécifications Techniques FR (JSON Key/Value)</label>
+            <textarea class="specs-json" id="adminSpecsFR" rows="4"></textarea>
+        </div>
+        <div class="admin-field">
+            <label>Technical Specifications EN (JSON Key/Value)</label>
+            <textarea class="specs-json" id="adminSpecsEN" rows="4"></textarea>
+        </div>
+        <div class="admin-actions">
+            <button class="btn-save" id="btnAdminSave">Enregistrer & Appliquer</button>
+            <button class="btn-export" id="btnAdminExport">Exporter JSON</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 1. CONFIGURATION & DONNÉES TECHNIQUES BILINGUES
+        // ============================================================
+        let currentLang = 'fr';
+        let packMetadata = null;
+        let selectedCompId = 'top_cover';
+        let isXRayActive = false;
+
+        async function loadMetadata() {
+            try {
+                const res = await fetch('./battery_pack_metadata.json?v=' + Date.now(), { cache: 'no-store' });
+                if (res.ok) {
+                    packMetadata = await res.json();
+                } else {
+                    throw new Error("HTTP " + res.status);
+                }
+            } catch (err) {
+                console.warn("Chargement metadata local :", err);
+                packMetadata = getFallbackMetadata();
+            }
+            populateDropdowns();
+            updateDisplay(selectedCompId);
+        }
+
+        function getFallbackMetadata() {
+            return {"$schema": "http://json-schema.org/draft-07/schema#", "pack_info": {"project_name_fr": "Pack fictif 49 kWh - 8 Modules - 96 Cellules Prismatiques (96S1P)", "project_name_en": "Fictitious 49 kWh Pack - 8 Modules - 96 Prismatic Cells (96S1P)", "architecture_type_fr": "Architecture de pack intégrée avec BTMS inférieur & compartiment technique HT", "architecture_type_en": "Integrated Pack Architecture with Lower BTMS & Front HV Compartment", "cell_format": "Prismatique (148 x 91 x 27 mm)", "chemistry": "Li-ion NMC 811 (Nickel-Manganèse-Cobalt 8:1:1)", "cell_capacity_ah": 140, "total_modules": 8, "cells_per_module": 12, "total_cells": 96, "electrical_config": "96S1P (96 cellules en série, 0 en parallèle)", "nominal_voltage_v": 350.4, "voltage_range_v": "268.8 V à 403.2 V", "total_energy_kwh": 49.05, "usable_energy_kwh": 45.5, "total_mass_kg": 335, "gravimetric_energy_density_wh_kg": 146.4, "standards_compliance": ["ISO 26262 ASIL-D", "ISO 6469-1 / ISO 6469-3 / ISO 6469-4", "UN ECE R100 Rev. 3", "GB 38031-2020", "UL 94 V-0", "IP67 / IP6K9K (ISO 20653)", "Euro NCAP / FMVSS 214"], "last_updated": "2026-09-12", "dimensions_overall_mm": "1350 mm (largeur bas de caisse) x 1650 mm (longueur empattement) x 160 mm (hauteur)", "cavity_clearances_mm": "20 mm fonctionnel latéral, 50 mm tunnel central, 3 cloisons transversales", "study_context_fr": "Exemple d’architecture, valeurs illustratives", "study_context_en": "Engineering architecture example, illustrative values"}, "components": [{"id": "top_cover", "number": 1, "name_fr": "Couvercle supérieur embouti avec nervures de rigidification", "name_en": "Stamped Aluminum Top Cover with Stiffening Ribs", "category_fr": "Enceinte & Structure Mécanique", "category_en": "Enclosure & Structural Mechanical", "material_fr": "Aluminium 5754 / 6061-T6 embouti (1.8 mm) avec 5 nervures transversales, cataphorèse et peinture noire satinée (RAL 9005)", "material_en": "Stamped 5754 / 6061-T6 Aluminum alloy (1.8 mm) with 5 transverse ribs, e-coat, and automotive satin black finish (RAL 9005)", "specs_fr": {"Étanchéité": "IP67 / IP6K9K (selon norme ISO 20653 - immersion et jet haute pression)", "Atténuation CEM (Compatibilité Électromagnétique)": "> 65 dB de blindage contre les parasites (10 kHz - 1 GHz)", "Nervures embouties": "5 nervures transversales discrètes (profondeur 5 mm) avec extrémités amincies et bossage central Gore", "Résistance à la pression": "100 kPa en charge externe uniformément répartie", "Dimensions hors-tout": "1250 mm (largeur) x 1550 mm (longueur) x 1.8 mm (épaisseur tôle)", "Masse": "14.2 kg"}, "specs_en": {"Sealing Rating": "IP67 / IP6K9K (per ISO 20653 - immersion and high-pressure steam jet)", "EMC Shielding (Electromagnetic Compatibility)": "> 65 dB attenuation against electrical noise (10 kHz - 1 GHz)", "Stamped Ribs": "5 discrete transverse ribs (5 mm emboss depth) with drop-tapered ends and central Gore vent boss", "Pressure Resistance": "100 kPa uniform external mechanical load", "Dimensions": "1250 mm (width) x 1550 mm (length) x 1.8 mm (sheet gauge)", "Mass": "14.2 kg"}, "description_fr": "Protection mécanique supérieure de l'enceinte du pack contre les projections de gravillons, la pénétration d'eau et les chocs. Sa géométrie continue en tôle emboutie intègre 5 nervures transversales rigidifiantes limitant le voilement et un bossage pour évent de dégazage.", "description_en": "Upper structural barrier protecting the battery enclosure against stone strikes, water ingress, and impact. Continuous stamped aluminum sheet features 5 transverse stiffening ribs to prevent drumming and oil-canning, plus a Gore breather boss."}, {"id": "bms_board", "number": 2, "name_fr": "Calculateur maître BMS (Battery Management System) / BMU ECU", "name_en": "Master BMS (Battery Management System) Controller / BMU ECU", "category_fr": "Électronique de Contrôle & Puissance HT", "category_en": "Control Electronics & HV Power", "material_fr": "Boîtier étanche aluminium moulé avec dissipateur à 9 ailettes, blindage CEM (Compatibilité Électromagnétique), PCB FR4 High-TG", "material_en": "Die-cast sealed aluminum enclosure with 9 fin heatsink, EMC (Electromagnetic Compatibility) shielding, High-TG FR4 PCB", "specs_fr": {"Norme de sécurité fonctionnelle": "ISO 26262 ASIL-D (Automotive Safety Integrity Level D - niveau critique maximal)", "Boîtier ECU (Electronic Control Unit)": "250 x 170 x 38 mm avec 9 ailettes de refroidissement et 4 fixations M5", "Connectique automobile étanche": "Triple connecteur : I/O véhicule 64 broches, Daisy-Chain série 32 broches, Sense HT 16 broches", "Surveillance d'isolement HT": "> 500 Ω/V continu (seuil d'alerte sécurité à 100 Ω/V)", "Algorithmes embarqués": "Calcul temps réel du SoC (State of Charge - État de charge) et du SoH (State of Health - État de santé)"}, "specs_en": {"Functional Safety Standard": "ISO 26262 ASIL-D (Automotive Safety Integrity Level D - highest criticality)", "ECU (Electronic Control Unit) Enclosure": "250 x 170 x 38 mm with 9 heatsink fins and 4 M5 mounting points", "Sealed Automotive Connectors": "Triple header: 64-pin Vehicle I/O, 32-pin Serial Daisy-Chain, 16-pin HV Sense", "HV Isolation Monitoring": "> 500 Ω/V continuous (> 100 Ω/V fault warning threshold)", "Embedded Algorithms": "Real-time computation of SoC (State of Charge) and SoH (State of Health)"}, "description_fr": "Cerveau électronique central du pack (BMU - Battery Management Unit) supervisant l'état électrochimique des 96 cellules. Il commande les contacteurs de puissance, orchestre la coupure d'urgence par pyrofusible et communique via bus CAN-FD automobile.", "description_en": "Central electronic master controller (BMU - Battery Management Unit) orchestrating all 96 cells. Commands high-voltage power contactors, triggers emergency pyrofuse isolation, and interfaces with vehicle via CAN-FD."}, {"id": "contactors", "number": 3, "name_fr": "Contacteurs principaux HT (Haute Tension + / - avec relais d'isolement)", "name_en": "Main HV (High Voltage) Contactors (+ / - with Isolation Relays)", "category_fr": "Distribution Haute Tension (HVJB)", "category_en": "High Voltage Power Distribution (HVJB)", "material_fr": "Chambre d'extinction d'arc céramique hermétique scellée sous hydrogène, bornes en cuivre pur étamé", "material_en": "Hermetically sealed ceramic arc-extinguishing chamber backfilled with hydrogen, tinned copper studs", "specs_fr": {"Tension assignée HT": "1000 V DC (Courant Continu)", "Courant permanent admissible": "350 A continu (@ 85 °C) / 1500 A crête (10 s)", "Pouvoir de coupure d'urgence": "2500 A sous 400 V DC", "Isolation galvanique": "> 1000 MΩ entre contacts ouverts"}, "specs_en": {"Rated HV Voltage": "1000 V DC (Direct Current)", "Continuous Current Rating": "350 A continuous (@ 85 °C) / 1500 A peak (10 s)", "Emergency Break Capacity": "2500 A @ 400 V DC", "Galvanic Isolation": "> 1000 MΩ across open contacts"}, "description_fr": "Relais électromécaniques de puissance haute tension assurant la coupure et l'isolation galvanique bipolaire de la batterie lorsque le véhicule est à l'arrêt ou lors d'une anomalie critique.", "description_en": "High-voltage electromechanical power relays providing galvanic isolation of the battery pack whenever the vehicle is parked or an electrical fault occurs."}, {"id": "fuse_pyro", "number": 4, "name_fr": "Disjoncteur pyrotechnique / Pyrofusible (Coupure d'urgence ISO 6469-4 / ISO 6469-3)", "name_en": "Pyrofuse / Pyroswitch Emergency Disconnect (ISO 6469-4 / ISO 6469-3)", "category_fr": "Protection & Sécurité Haute Tension (HT)", "category_en": "HV Protection & Safety", "material_fr": "Corps thermoplastique orange sécurité UL94-V0, micro-initiateur pyrotechnique à gaz, barre conductrice cuivre", "material_en": "Safety orange flame-retardant UL94-V0 body, pyrotechnic micro gas-generator initiator, copper busbar blade", "specs_fr": {"Temps de sectionnement physique": "< 1.5 milliseconde après déclenchement", "Courant de coupure maximal": "Jusqu'à 30 000 A en court-circuit franc", "Norme de référence": "ISO 6469-4 (Sécurité post-collision) & ISO 6469-3 (Sécurité électrique)", "Déclenchement": "Signal impulsionnel 12V synchronisé avec le calculateur d'airbag"}, "specs_en": {"Physical Severance Time": "< 1.5 milliseconds after trigger command", "Maximum Interruption Current": "Up to 30,000 A bolted short-circuit current", "Safety Standard": "ISO 6469-4 (Post-crash electrical safety) & ISO 6469-3 (Electrical safety)", "Triggering": "Dedicated 12V pulse synchronized with vehicle restraint/airbag ECU"}, "description_fr": "Organe de sécurité sectionnant mécaniquement le busbar principal d'alimentation en cas de collision sévère ou de court-circuit externe majeur, contribuant à couper l'arc électrique et à réduire le risque d'arc persistant selon les conditions de conception et de validation.", "description_en": "High-speed safety interrupter physically severing the primary traction busbar in severe vehicle collisions or dead shorts, designed to mitigate persistent arcing and facilitate post-crash electrical isolation per design and validation conditions."}, {"id": "precharge_resistor", "number": 5, "name_fr": "Résistance & Relais de précharge HT (Haute Tension)", "name_en": "HV (High Voltage) Pre-charge Resistor & Relay", "category_fr": "Distribution Haute Tension (HVJB)", "category_en": "High Voltage Power Distribution (HVJB)", "material_fr": "Résistance bobinée de puissance sous boîtier aluminium à ailettes dorées avec relais compact", "material_en": "Wirewound ceramic power resistor in gold-anodized finned aluminum casing with compact relay", "specs_fr": {"Valeur ohmique": "47 Ω (50 W en régime continu, 5 kW impulsionnel crête)", "Durée de temporisation": "250 à 350 ms (jusqu'à équilibre à 95% de la tension bus)", "Protection": "Évite la destruction des condensateurs de liaison DC de l'onduleur"}, "specs_en": {"Resistance Value": "47 Ω (50 W continuous, 5 kW peak pulse rating)", "Precharge Duration": "250 to 350 ms (until reaching 95% DC link voltage)", "Function": "Protects inverter DC-link capacitors against destructive inrush current spikes"}, "description_fr": "Circuit temporisé limitant l'appel de courant lors de la fermeture initiale des contacteurs afin de charger progressivement les condensateurs de l'onduleur de traction.", "description_en": "Timed circuit limiting huge inrush currents upon battery energization by gently charging inverter DC-link capacitors before closing main contactors."}, {"id": "cooling_plate", "number": 6, "name_fr": "Plaque froide de refroidissement liquide BTMS (Battery Thermal Management System)", "name_en": "Liquid Cooling Cold Plate (BTMS - Battery Thermal Management System)", "category_fr": "Gestion Thermique BTMS (Battery Thermal Management System)", "category_en": "Thermal Management (BTMS)", "material_fr": "Aluminium 3003 brasé sous vide avec 16 canaux longitudinaux emboutis (+4.5 mm)", "material_en": "Vacuum-brazed 3003 aluminum alloy with 16 embossed longitudinal channels (+4.5 mm)", "specs_fr": {"Fluide caloporteur": "Mélange 50/50 Eau déminéralisée + Éthylène glycol inhibé", "Canaux caloporteurs": "16 canaux longitudinaux continus (8 sous la rangée gauche, 8 sous la rangée droite)", "Dimensions de la plaque": "1140 mm (largeur) x 1220 mm (longueur) x 14 mm (épaisseur)", "Débit nominal": "16.5 L/min sous delta P < 35 kPa", "Pression d'épreuve": "2.5 bar (test d'étanchéité à l'hélium à 100%)"}, "specs_en": {"Heat Transfer Fluid": "50/50 mix Demineralized water + Inhibited ethylene glycol", "Coolant Channels": "16 continuous longitudinal channels (8 left row, 8 right row)", "Plate Dimensions": "1140 mm (width) x 1220 mm (length) x 14 mm (thickness)", "Nominal Flow Rate": "16.5 L/min with pressure drop < 35 kPa", "Proof Pressure": "2.5 bar (100% helium mass-spec leak tested)"}, "description_fr": "Échangeur thermique liquide placé sous les 8 modules batterie assurant l'évacuation des calories lors des charges rapides (DC Fast Charge) et des accélérations franches pour maintenir la température des cellules entre 20 °C et 35 °C.", "description_en": "Liquid cold plate positioned beneath all 8 battery modules extracting heat during fast charging (DCFC) and high-power discharge, stabilizing cell core temperature between 20 °C and 35 °C."}, {"id": "heating_pad", "number": 7, "name_fr": "Films chauffants électriques PTC (Positive Temperature Coefficient) en polyimide Kapton", "name_en": "PTC (Positive Temperature Coefficient) Polyimide Kapton Heating Foils", "category_fr": "Gestion Thermique BTMS (Battery Thermal Management System)", "category_en": "Thermal Management (BTMS)", "material_fr": "Film polyimide souple (Kapton) à pistes résistives cuivrées et auto-régulation thermique PTC", "material_en": "Flexible polyimide (Kapton) substrate with etched copper resistive tracks and PTC self-regulation", "specs_fr": {"Puissance thermique totale": "3.5 kW répartis sous les 8 modules", "Tension d'alimentation HT": "Alimentation directe sur le bus 350 V DC", "Auto-régulation PTC": "Baisse progressive du courant dès que la température atteint 25 °C", "Conditionnement hivernal": "Préchauffe le pack de -15 °C à +20 °C avant raccordement aux bornes haute puissance"}, "specs_en": {"Total Thermal Output": "3.5 kW distributed across 8 module positions", "Supply Voltage": "Direct 350 V DC high-voltage battery bus feed", "PTC Self-Regulation": "Inherent current reduction as target temperature of 25 °C is approached", "Winter Conditioning": "Warms pack from -15 °C to +20 °C ahead of high-power DC fast charging"}, "description_fr": "Films électriques ultra-fins positionnés sous chaque module assurant le réchauffage rapide des cellules par grand froid pour préserver la chimie Li-ion et éviter le placage de lithium métallique lors des charges rapides.", "description_en": "Ultra-thin electric heating elements underneath each module warming up cold cells during winter to avoid lithium plating and restore regenerative braking and fast-charge capability."}, {"id": "insulation_pad", "number": 8, "name_fr": "Pads amortisseurs NVH (Noise, Vibration, and Harshness) & diélectriques EPDM (16 pads)", "name_en": "NVH (Noise, Vibration, and Harshness) & Dielectric Damping Pads (16 EPDM Pads)", "category_fr": "Amortissement NVH & Isolation Diélectrique", "category_en": "NVH Damping & Dielectric Insulation", "material_fr": "Élastomère EPDM (Caoutchouc Éthylène-Propylène-Diène Monomère) cellulaire haute résilience (épaisseur 5 mm)", "material_en": "High-resilience cellular EPDM (Ethylene Propylene Diene Monomer) elastomer (5 mm thickness)", "specs_fr": {"Répartition sur le pack": "16 pads au total : 8 pads extérieurs (parois latérales) et 8 pads intérieurs (tunnel central)", "Épaisseur calibrée": "5.0 mm sous précompression de 15% au montage", "Isolation diélectrique": "Rigidité diélectrique > 25 kV/mm (isolation galvanique module-châssis)", "Amortissement vibratoire": "Conforme à la norme automobile ISO 16750-3 (vibrations et chocs routiers)", "Absorption de dilatation": "Absorbe les tolérances géométriques de fabrication et la dilatation thermique transversale"}, "specs_en": {"Distribution": "16 total pads: 8 outer pads (tray side walls) and 8 inner pads (central tunnel spine)", "Calibrated Thickness": "5.0 mm under 15% precompression upon bolt clampdown", "Dielectric Insulation": "Dielectric strength > 25 kV/mm (module-to-chassis galvanic barrier)", "Vibration Damping": "Compliant with automotive standard ISO 16750-3 (road vibrations and shocks)", "Thermal Expansion": "Compensates for manufacturing clearances and transverse thermal growth"}, "description_fr": "Tampons viscoélastiques en élastomère EPDM disposés entre les modules et les parois en aluminium du bac châssis (latérales et tunnel central). Ils absorbent les vibrations de la route (NVH), assurent l'isolation diélectrique et compensent la dilatation thermique cyclique des modules.", "description_en": "Viscoelastic EPDM elastomer pads installed between modules and aluminum tray walls (both exterior sills and central tunnel). They isolate road vibrations (NVH), provide dielectric separation, and absorb transverse module thermal breathing."}, {"id": "battery_module", "number": 9, "name_fr": "Modules batterie transversaux (8 modules 12S1P)", "name_en": "Transverse Battery Modules (8 Modules 12S1P)", "category_fr": "Stockage d'Énergie Électrochimique", "category_en": "Electrochemical Energy Storage", "material_fr": "Flasques de compression en aluminium coulé sous pression, tirants en acier inoxydable brossé, cage PA66-GF30", "material_en": "Die-cast aluminum compression end plates, brushed stainless steel tie straps, PA66-GF30 carrier cage", "specs_fr": {"Architecture": "8 modules transversaux (largeur 530 mm, longueur 280 mm, hauteur 115 mm)", "Agencement dans le pack": "2 rangées de 4 modules transversaux (remplissage compact, jeu latéral 20 mm)", "Précontrainte mécanique": "Compression mécanique constante de 3 à 5 kN appliquée sur le bloc de 12 cellules", "Masse unitaire": "28.4 kg par module complet (227.2 kg pour les 8 modules)"}, "specs_en": {"Architecture": "8 transverse modules (width 530 mm, length 280 mm, height 115 mm)", "Pack Layout": "2 rows of 4 transverse modules (compact cavity filling with 20 mm side clearance)", "Mechanical Preload": "Controlled 3 to 5 kN compression force applied over 12-cell stack", "Unit Mass": "28.4 kg per complete module (227.2 kg total for 8 modules)"}, "description_fr": "Sous-ensembles structurels compacts regroupant chacun 12 cellules prismatiques connectées en série (12S1P). Les flasques et tirants d'acier maintiennent les cellules sous précontrainte mécanique pour accompagner leur cyclage.", "description_en": "Structural sub-assemblies each housing 12 prismatic cells connected in series (12S1P). End plates and tie straps maintain mechanical preload over cell lifetime."}, {"id": "prismatic_cell", "number": 10, "name_fr": "Cellules Li-ion NMC 811 prismatiques (148 × 91 × 27 mm)", "name_en": "Prismatic Li-ion NMC 811 Cells (148 × 91 × 27 mm)", "category_fr": "Cellule Électrochimique Élémentaire", "category_en": "Elementary Electrochemical Cell", "material_fr": "Boîtier en aluminium embouti (148 x 91 x 27 mm), gaine diélectrique PET bleu roi, couvercle soudé au laser", "material_en": "Deep-drawn aluminum can (148 x 91 x 27 mm), royal blue dielectric PET sleeve, laser-welded lid", "specs_fr": {"Chimie électrochimique": "Li-ion NMC 811 (Nickel-Manganèse-Cobalt ratio 8:1:1)", "Capacité nominale": "140 Ah par cellule élémentaire", "Tension nominale": "3.65 V (plage d'utilisation 2.80 V à 4.20 V)", "Densité massique": "249 Wh/kg au niveau cellule", "Évent de sécurité": "Membrane d'éclatement calibrée intégrée au couvercle"}, "specs_en": {"Electrochemical Chemistry": "Li-ion NMC 811 (Nickel-Manganese-Cobalt ratio 8:1:1)", "Nominal Capacity": "140 Ah per elementary cell", "Nominal Voltage": "3.65 V (operating window 2.80 V to 4.20 V)", "Gravimetric Energy Density": "249 Wh/kg cell level", "Safety Vent": "Precision burst membrane laser-integrated into cell terminal lid"}, "description_fr": "Cellules électrochimiques prismatiques haute énergie constituant le stockage d'énergie du pack. Leur format plat et rigide favorise un agencement compact et un transfert thermique direct par la face inférieure vers la plaque froide.", "description_en": "High energy density prismatic lithium cells forming the energy storage of the pack. Their rigid casing enables compact integration and direct bottom-face heat transfer to the liquid cold plate."}, {"id": "busbars_omega", "number": 11, "name_fr": "Barres omnibus flexibles Ω isolées (Busbars HT Haute Tension en cuivre étamé)", "name_en": "Insulated Flexible Omega Busbars (HV High Voltage Tinned Copper)", "category_fr": "Interconnexion Électrique Haute Tension (HT)", "category_en": "High Voltage (HV) Electrical Interconnects", "material_fr": "Feuillard cuivre pur étamé à cambrure Ω (Omega) avec surgaine isolante orange sécurité thermorétractable (UL94-V0)", "material_en": "Laminated high-purity tinned copper foils with Ω (Omega) loop and orange safety heat-shrink sleeve (UL94-V0)", "specs_fr": {"Section conductrice": "120 mm² en cuivre électrolytique pur étamé (Cu-ETP)", "Courant admissible": "280 A continu / 1200 A crête en accélération", "Cambrure élastique Ω": "Absorbe les micro-déplacements thermiques et vibratoires sans contrainte sur les bornes", "Isolation diélectrique": "Manchon orange ignifugé certifié 1000 V DC"}, "specs_en": {"Conductive Cross-Section": "120 mm² high-purity electrolytic tinned copper (Cu-ETP)", "Current Rating": "280 A continuous / 1200 A peak under full acceleration", "Elastic Ω Arc": "Absorbs thermal expansion and road vibration without stressing cell terminals", "Dielectric Insulation": "Flame-retardant safety orange sleeve rated at 1000 V DC"}, "description_fr": "Ponts conducteurs flexibles reliant en série les cellules prismatiques adjacentes. L'arche en forme de lettre grecque Oméga confère une souplesse 3D contribuant à découpler les contraintes thermomécaniques sur les soudures des bornes.", "description_en": "Flexible electrical bridges connecting adjacent prismatic cells in series. The engineered Omega loop provides three-dimensional compliance, designed to reduce thermo-mechanical stresses on terminal welds."}, {"id": "fpc_harness", "number": 12, "name_fr": "Faisceau flexible d'acquisition de tension et température FPC (Flexible Printed Circuit)", "name_en": "Cell Voltage & Temperature Sensing FPC (Flexible Printed Circuit)", "category_fr": "Instrumentation & Métrologie BMS", "category_en": "BMS Sensing & Metrology", "material_fr": "Substrat polyimide ambré souple double face avec pistes cuivre et micro-fusibles CMS de protection", "material_en": "Flexible double-sided amber polyimide film with etched copper traces and SMD protection micro-fuses", "specs_fr": {"Prises de potentiel": "96 lignes de mesure de tension directe de cellule", "Protection intégrée": "Micro-fusibles CMS calibrés à 50 mA en série sur chaque canal", "Sondes de température": "Connexion directe aux 24 thermistances NTC", "Épaisseur totale": "< 0.35 mm (encombrement vertical quasi nul)"}, "specs_en": {"Potential Sense Channels": "96 individual cell voltage sensing taps", "Integrated Safety": "50 mA SMD micro-fuses series-wired on every sense trace", "Temperature Interfacing": "Direct interface to all 24 NTC thermistor channels", "Overall Profile": "< 0.35 mm ultra-thin vertical envelope"}, "description_fr": "Circuit imprimé souple multicouche remplaçant avantageusement les faisceaux de câbles volumineux pour acheminer les tensions précises de chaque cellule et les signaux de température vers les cartes satellites CMU du BMS.", "description_en": "Ultra-flat flexible printed circuit replacing bulky wire looms to route precise cell voltages and thermal sensor readings directly to local CMU satellite boards."}, {"id": "hv_connector", "number": 13, "name_fr": "Connecteur de puissance HT (Haute Tension) de traction (blindage CEM 360°)", "name_en": "Traction HV (High Voltage) Power Connector (360° EMC Shielding)", "category_fr": "Connectique & Raccordement Véhicule", "category_en": "Vehicle Interface Connectors", "material_fr": "Corps PBT thermoplastique orange sécurité avec blindage CEM périphérique en alliage cuivre-béryllium et joint silicone", "material_en": "Safety orange PBT thermoplastic housing with 360° beryllium-copper EMC shield and silicone gasket", "specs_fr": {"Tension assignée": "1000 V DC en service continu", "Courant crête": "650 A (raccordement onduleur de traction)", "Blindage électromagnétique": "Atténuation CEM 360° conforme CISPR 25 Classe 5", "Interlock de sécurité (HVIL)": "Boucle basse tension coupant immédiatement les contacteurs en cas de déconnexion"}, "specs_en": {"Rated Voltage": "1000 V DC continuous service", "Peak Current": "650 A (traction inverter interface)", "Electromagnetic Shielding": "360° EMC shielding compliant with CISPR 25 Class 5", "Safety Interlock (HVIL)": "Low-voltage loop immediately tripping contactors upon disconnect"}, "description_fr": "Prise de raccordement haute tension étanche traversant la paroi avant du bac châssis pour alimenter l'onduleur de propulsion du véhicule tout en garantissant un blindage anti-parasite 360°.", "description_en": "Hermetic high-voltage bulkhead connector penetrating front tray wall, routing battery power to inverter while maintaining 360° electromagnetic shielding."}, {"id": "vent_valve", "number": 14, "name_fr": "Évent de dégazage & valve de surpression d'urgence (Membrane ePTFE Gore)", "name_en": "Emergency Pressure Relief & Degassing Vent (ePTFE Gore Membrane)", "category_fr": "Sécurité & Protection Contre l'Emballement Thermique", "category_en": "Safety & Thermal Runaway Mitigation", "material_fr": "Corps usiné avec membrane microporeuse en ePTFE (Polytétrafluoroéthylène Expansé) oléophobe et étanche", "material_en": "Machined body with oleophobic waterproof ePTFE (Expanded Polytetrafluoroethylene) membrane", "specs_fr": {"Fonctionnement continu": "Égalisation respiratoire continue des variations de pression barométrique (IP67 / IP6K9K)", "Pression de rupture d'urgence": "Ouverture franche à 35 kPa (350 mbar) en cas d'emballement thermique", "Débit de dégazage": "> 150 L/s d'évacuation rapide des gaz chauds"}, "specs_en": {"Continuous Breathing": "Equalizes barometric pressure swings while blocking water ingress (IP67 / IP6K9K)", "Emergency Burst Pressure": "Instantaneous mechanical popping at 35 kPa (350 mbar) in thermal runaway", "Emergency Flow Capacity": "> 150 L/s hot gas evacuation"}, "description_fr": "Soupape de sécurité à double étage : régule la respiration de l'enceinte au quotidien pour éviter toute dépression, et s'ouvre massivement en cas d'emballement thermique d'une cellule pour éviter l'explosion de l'enceinte.", "description_en": "Dual-stage pressure equalization vent: allows normal breathing across temperature swings, while instantly bursting open in a thermal runaway event to prevent catastrophic casing overpressure."}, {"id": "coolant_ports", "number": 15, "name_fr": "Raccords caloporteurs rapides étanches sans égouttement (Dry-Break BTMS)", "name_en": "Dry-Break Coolant Quick Disconnect Ports (BTMS)", "category_fr": "Gestion Thermique BTMS (Battery Thermal Management System)", "category_en": "Thermal Management (BTMS)", "material_fr": "Aluminium usiné naturel brillant 6061 avec double joint torique FKM (Fluoroélastomère)", "material_en": "Precision machined bright 6061 aluminum alloy with dual FKM (Fluoroelastomer) O-rings", "specs_fr": {"Diamètre de passage": "19 mm (3/4 pouce)", "Type de raccord": "Déconnexion rapide Dry-Break sans fuite ni entrée d'air au désaccouplement", "Pression de service": "Jusqu'à 6 bar continu"}, "specs_en": {"Internal Bore Diameter": "19 mm (3/4 inch)", "Coupling Type": "Dry-Break spill-free quick disconnect mechanism", "Operating Pressure": "Up to 6 bar continuous fluid pressure"}, "description_fr": "Embouts de circulation caloporteurs étanches permettant de connecter le pack au circuit de refroidissement général du véhicule (radiateur avant / pompe à chaleur) lors de l'assemblage en usine.", "description_en": "Leak-free quick-connect ports interfacing the battery pack cold plate with the vehicle liquid refrigeration circuit during vehicle assembly."}, {"id": "lower_case", "number": 16, "name_fr": "Bac châssis inférieur embouti/extrudé avec rails de protection latérale (1350 × 1650 mm)", "name_en": "Lower Chassis Deep Tray with Side Impact Rails (1350 × 1650 mm)", "category_fr": "Enceinte & Structure Châssis", "category_en": "Chassis & Structural Enclosure", "material_fr": "Profilés aluminium extrudé 6000 et tôle de fond emboutie soudés laser avec rails de bas de caisse latéraux", "material_en": "6000-series extruded aluminum longitudinal rails and stamped floor plate laser-welded with side rocker sills", "specs_fr": {"Dimensions hors-tout": "1350 mm (largeur rails bas de caisse) x 1650 mm (longueur empattement) x 160 mm (hauteur)", "Structure interne": "Épine dorsale centrale de 50 mm et 3 cloisons transversales formant 8 alvéoles modulaires", "Zone de déformation latérale": "Rails de bas de caisse renforcés à absorption d'énergie au choc latéral (Euro NCAP / FMVSS 214)", "Plaque de blindage sous plancher": "Tôle d'aluminium haute résistance 3.0 mm protégeant le fond de caisse"}, "specs_en": {"Overall Dimensions": "1350 mm (rocker rail width) x 1650 mm (wheelbase length) x 160 mm (height)", "Internal Framing": "50 mm central tunnel spine and 3 transverse bulkheads defining 8 module cavities", "Side Crash Absorption": "Reinforced structural rocker sills absorbing side pole impact energy (Euro NCAP / FMVSS 214)", "Underbody Armor Plate": "3.0 mm high-strength aluminum bottom skid plate protecting against ground debris"}, "description_fr": "Cuve structurelle principale intégrée au soubassement du véhicule. Elle contribue à protéger les modules contre les chocs latéraux et de bas de caisse, rigidifie la caisse en torsion et participe à l'étanchéité globale du pack.", "description_en": "Primary structural tray integrated into the vehicle underbody. Designed to protect modules against lateral impact and road debris, while contributing to chassis torsional rigidity and environmental sealing."}, {"id": "seal_gasket", "number": 17, "name_fr": "Joint d'étanchéité périphérique continu en élastomère EPDM (IP67 / IP6K9K)", "name_en": "Continuous Peripheral EPDM Seal Gasket (IP67 / IP6K9K)", "category_fr": "Étanchéité & Joints d'Enceinte", "category_en": "Sealing & Enclosure Gaskets", "material_fr": "Élastomère EPDM (Caoutchouc Éthylène-Propylène-Diène Monomère) profil tubulaire creux à mémoire de forme", "material_en": "Extruded continuous EPDM (Ethylene Propylene Diene Monomer) hollow bulb profile elastomer", "specs_fr": {"Profil géométrique": "Profil en D creux avec lèvre d'étanchéité et gorge de positionnement continue", "Plage thermique d'utilisation": "-40 °C à +125 °C sans perte de résilience élastique", "Indice de protection": "IP67 (immersion 1 m d'eau) et IP6K9K (lavage sous pression 100 bar à 80 °C)"}, "specs_en": {"Cross-Sectional Shape": "Hollow D-bulb with sealing lip seated into perimeter groove", "Temperature Range": "-40 °C to +125 °C without loss of elastomeric recovery", "Ingress Protection": "IP67 (1 m water submersion) and IP6K9K (100 bar high-pressure wash @ 80 °C)"}, "description_fr": "Cordon d'étanchéité continu comprimé entre le rebord du bac inférieur et le couvercle supérieur par la visserie périphérique pour assurer l'étanchéité aux projections d'eau, poussières et contaminants selon les indices IP67 / IP6K9K visés.", "description_en": "Continuous elastomeric seal compressed between the tray rim and top cover by perimeter fasteners, designed to prevent water ingress and particulate contamination per targeted IP67 / IP6K9K standards."}, {"id": "fastening_bolts", "number": 18, "name_fr": "Visserie d'assemblage périphérique M6 classe 10.9 avec revêtement zinc lamellaire", "name_en": "Perimeter Assembly Fastening Bolts M6 Grade 10.9 (Zinc Flake Coated)", "category_fr": "Visserie & Fixations Mécaniques", "category_en": "Mechanical Fasteners & Hardware", "material_fr": "Acier allié haute résistance trempé classe 10.9 avec traitement anticorrosion au zinc lamellaire Geomet", "material_en": "High-tensile quenched Grade 10.9 alloy steel with Geomet zinc-flake anti-corrosion coating", "specs_fr": {"Nombre de vis": "40 vis M6 réparties uniformément sur le pourtour", "Couple de serrage calibré": "9.5 Nm avec contrôle d'angle en usine", "Résistance à la corrosion": "> 1000 heures d'exposition au brouillard salin neutre (ISO 9227)"}, "specs_en": {"Bolt Count": "40 M6 bolts distributed evenly around enclosure perimeter", "Calibrated Torque": "9.5 Nm with torque-angle monitoring at factory assembly", "Corrosion Resistance": "> 1000 hours neutral salt spray resistance (ISO 9227)"}, "description_fr": "Boulonnerie assurant le placage sous pression constante du couvercle sur le joint d'étanchéité tout en garantissant la continuité de masse électrique et le blindage CEM de l'enceinte.", "description_en": "High-tensile fasteners compressing the top cover onto the peripheral gasket, ensuring continuous clamping pressure, chassis ground bonding, and electromagnetic shielding continuity."}, {"id": "slave_bms", "number": 19, "name_fr": "Cartes électroniques de surveillance CMU / CSC (Cell Monitoring Unit / Cell Surveillance Controller)", "name_en": "Satellite Slave BMS Modules (CMU / CSC - Cell Monitoring Units)", "category_fr": "Électronique de Contrôle & Métrologie", "category_en": "Control Electronics & Sensing", "material_fr": "PCB FR4 multicouche vert avec puces AFE (Analog Front-End) de sécurité automobile et boîtier QFP48", "material_en": "Multilayer green FR4 PCB featuring automotive-grade AFE (Analog Front-End) ASICs in QFP48 package", "specs_fr": {"Nombre de cartes esclaves": "8 cartes satellites CMU (1 unité dédiée montée sur chaque module)", "Précision de numérisation": "± 1.0 mV par cellule Li-ion (ADC 16 bits synchronisé)", "Équilibrage cellulaire": "Circuits d'équilibrage passif par dissipation de 150 mA par cellule", "Acquisition de température": "Gestion directe de 3 canaux de thermistances NTC par module"}, "specs_en": {"Slave Module Count": "8 satellite CMU boards (1 dedicated board per battery module)", "Digitization Accuracy": "± 1.0 mV per Li-ion cell (16-bit synchronized ADC)", "Cell Balancing": "Passive balancing circuits discharging 150 mA per cell channel", "Thermal Monitoring": "Reads 3 local NTC thermistor channels per module"}, "description_fr": "Cartes électroniques locales numérisant en continu les tensions des 12 cellules de leur module, exécutant l'équilibrage passif et transmettant les données sécurisées au calculateur maître BMU via bus isolé.", "description_en": "Local electronic modules digitizing cell voltages for each 12S module, managing passive cell balancing, and transmitting diagnostics to the master BMU across an isolated serial bus."}, {"id": "ntc_sensors", "number": 20, "name_fr": "Sondes de température NTC (Negative Temperature Coefficient - 24 thermistances)", "name_en": "NTC (Negative Temperature Coefficient) Temperature Sensors (24 Thermistor Probes)", "category_fr": "Instrumentation Thermique & Sécurité BTMS", "category_en": "BTMS Thermal Instrumentation", "material_fr": "Perles époxy noires thermistance NTC 10 kΩ, gaines rétractables jaunes, fils silicone souples", "material_en": "10 kΩ NTC black epoxy thermistor beads, yellow heat-shrink strain relief, flexible silicone leads", "specs_fr": {"Nombre total de sondes": "24 sondes NTC (3 sondes réparties par module entre les cellules)", "Précision de mesure": "± 0.5 °C entre -20 °C et +60 °C", "Temps de réponse thermique": "Tau < 1.2 seconde au cœur des cellules", "Détection d'emballement": "Déclenchement d'alerte immédiate si dT/dt > 1.0 °C/seconde"}, "specs_en": {"Total Sensor Count": "24 NTC thermistor probes (3 probes positioned per module between cells)", "Measurement Accuracy": "± 0.5 °C over -20 °C to +60 °C window", "Thermal Response Time": "Tau < 1.2 seconds at cell interface", "Thermal Runaway Flagging": "Immediate critical alert triggered if dT/dt exceeds 1.0 °C/second"}, "description_fr": "Capteurs thermiques plongeant au contact direct des enveloppes de cellules pour mesurer précisément les températures en fonctionnement et détecter instantanément tout échauffement anormal ou amorce d'emballement.", "description_en": "Precision thermistors nestled directly between cell casings to monitor operational thermal maps and flag localized hotspot anomalies or early thermal runaway onset."}, {"id": "current_shunt", "number": 21, "name_fr": "Shunt de mesure de courant HT (Haute Tension) de précision (calcul SoC / SoH)", "name_en": "Precision High-Voltage Current Sensing Shunt (SoC / SoH Computation)", "category_fr": "Distribution Haute Tension & Métrologie", "category_en": "High-Voltage Power & Metrology", "material_fr": "Lame centrale en alliage Manganin à dérive thermique quasi nulle, embouts cuivre pur et carte ADC 24 bits", "material_en": "Precision Manganin alloy sensing strip with near-zero thermal drift, copper lugs, 24-bit ADC daughterboard", "specs_fr": {"Plage de mesure": "± 800 A continu / ± 1500 A crête en accélération", "Résistance calibrée": "100 µΩ (dérive en température < 15 ppm/K)", "Comptage coulométrique": "Acquisition continue pour le calcul précis du SoC (State of Charge - État de charge)"}, "specs_en": {"Measurement Dynamic Range": "± 800 A continuous / ± 1500 A peak under full acceleration", "Calibrated Resistance": "100 µΩ (temperature drift < 15 ppm/K)", "Coulomb Counting": "Continuous high-resolution integration for accurate SoC (State of Charge) computation"}, "description_fr": "Capteur de courant métrologique mesurant le débit instantané d'ampères entrant et sortant du pack avec une précision extrême pour estimer l'autonomie restante et déclencher les protections de surintensité.", "description_en": "Ultra-precise current measuring resistor measuring every milliampere entering or exiting the pack, providing coulomb counting telemetry for remaining range and overcurrent fault tripping."}, {"id": "daisy_chain", "number": 22, "name_fr": "Faisceau de communication série blindé (Bus Daisy-Chain iso-SPI / CAN)", "name_en": "Isolated Serial Daisy-Chain Comms Harness (iso-SPI / CAN Bus)", "category_fr": "Réseau de Communication Interne", "category_en": "Internal Network & Communication", "material_fr": "Liaison différentielle torsadée blindée avec isolation galvanique 2500 V RMS et gaine ignifugée", "material_en": "Shielded twisted-pair differential harness with 2500 V RMS galvanic isolation and flame-retardant jacket", "specs_fr": {"Topologie réseau": "Boucle fermée série en guirlande (Daisy-Chain) reliant les 8 cartes CMU au maître BMU", "Débit de données": "2 Mbps (protocole iso-SPI différentiel robuste au bruit CEM)", "Tolérance de panne": "Communication bidirectionnelle en anneau tolérant une coupure de faisceau"}, "specs_en": {"Network Topology": "Closed series loop (Daisy-Chain) interconnecting all 8 CMU satellites to master BMU", "Data Rate": "2 Mbps (differential iso-SPI protocol immune to high EMC noise)", "Fault Tolerance": "Ring architecture allowing reverse-direction transmission if a break occurs"}, "description_fr": "Faisceau numérique rapide et blindé reliant en boucle l'ensemble des modules au calculateur central pour remonter les télémétries de tension et température avec une immunité totale aux parasites électromagnétiques.", "description_en": "Robust shielded digital link daisy-chaining all module monitoring units to the master BMU, transmitting cell telemetries with high immunity to inverter electromagnetic interference."}, {"id": "hv_cables", "number": 23, "name_fr": "Faisceau de puissance HT (Haute Tension) blindé et gainé de silicone orange", "name_en": "Shielded High-Voltage Power Cable Harness (Safety Orange Silicone)", "category_fr": "Distribution Haute Tension (HVJB)", "category_en": "High Voltage Power Distribution (HVJB)", "material_fr": "Âme en cuivre multibrin souple 50 mm², isolant silicone orange sécurité UL94-V0, tresse de blindage CEM en cuivre étamé", "material_en": "Flexible Class 6 multi-strand 50 mm² copper conductor, safety orange silicone insulation, tinned copper EMC braid", "specs_fr": {"Tension assignée": "1000 V AC / 1500 V DC", "Gaine cannelée de protection": "Protection mécanique contre l'abrasion et les pincements", "Courbures 3D calculées": "Rayons de cintrage optimisés pour éliminer toute contrainte de fatigue mécanique"}, "specs_en": {"Rated Voltage": "1000 V AC / 1500 V DC", "Corrugated Conduit": "Outer mechanical protection resisting abrasion and pinch loads", "3D Formed Routing": "Stress-relieved bend radii eliminating mechanical fatigue on copper terminals"}, "description_fr": "Câblage de puissance haute tension reliant les modules batterie à la boîte de jonction avant (HVJB) et au connecteur principal du véhicule dans le respect strict des normes de sécurité visuelle orange.", "description_en": "High-current cables interconnecting battery modules, forward junction box (HVJB) components, and the main vehicle traction plug, color-coded in regulatory safety orange."}, {"id": "coolant_internal_pipes", "number": 24, "name_fr": "Canaux caloporteurs en boucle fermée BTMS (16 canaux longitudinaux)", "name_en": "Closed-Loop Coolant Serpentine & Internal Manifolds (BTMS - 16 Channels)", "category_fr": "Gestion Thermique BTMS (Battery Thermal Management System)", "category_en": "Thermal Management (BTMS)", "material_fr": "Aluminium extrudé 6063 avec tubulures plates multicellulaires et collecteur transversal à faible perte de charge", "material_en": "Extruded 6063 aluminum multi-port flat tubing with optimized low-delta-P transverse manifold", "specs_fr": {"Configuration du circuit": "Boucle fermée continue à 16 canaux longitudinaux en serpentin sous les modules", "Homogénéité thermique": "Écart maximal de température (Delta T) inférieur à 2.5 °C entre le module le plus froid et le plus chaud", "Raccordement interne": "Collecteur avant intégré raccordé directement aux ports Dry-Break extérieurs"}, "specs_en": {"Loop Configuration": "Continuous closed-loop 16-channel longitudinal serpentine under all modules", "Thermal Uniformity": "Maximum temperature gradient (Delta T) under 2.5 °C across all module locations", "Internal Manifold": "Integrated forward distribution manifold connected directly to dry-break bulkhead ports"}, "description_fr": "Réseau hydraulique interne guidant le fluide caloporteur selon un cheminement en serpentin équilibré sous les 8 modules pour favoriser un refroidissement homogène et contribuer à limiter les échauffements localisés.", "description_en": "Internal fluid circuit distributing liquid coolant in an optimized serpentine path beneath all 8 modules, maintaining balanced thermal transfer and designed to mitigate localized thermal hot spots."}]};
+        }
+
+        function populateDropdowns() {
+            const sel = document.getElementById('compSelector');
+            const adminSel = document.getElementById('adminSelectComp');
+            sel.innerHTML = '';
+            adminSel.innerHTML = '';
+
+            packMetadata.components.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.innerText = currentLang === 'fr' ? `[${c.number}] ${c.name_fr}` : `[${c.number}] ${c.name_en}`;
+                sel.appendChild(opt);
+
+                const adminOpt = document.createElement('option');
+                adminOpt.value = c.id;
+                adminOpt.innerText = `[${c.number}] ${c.name_fr} (${c.name_en})`;
+                adminSel.appendChild(adminOpt);
+            });
+            sel.value = selectedCompId;
+        }
+
+        function getComp(id) {
+            return packMetadata.components.find(c => c.id === id) || packMetadata.components[0];
+        }
+
+        function updateDisplay(id, doFlash = false) {
+            selectedCompId = id;
+            document.getElementById('compSelector').value = id;
+            const c = getComp(id);
+            const isFr = currentLang === 'fr';
+
+            document.getElementById('infoTitle').innerText = isFr ? `[${c.number}] ${c.name_fr}` : `[${c.number}] ${c.name_en}`;
+            document.getElementById('infoCategory').innerText = isFr ? c.category_fr : c.category_en;
+            document.getElementById('infoMaterial').innerText = (isFr ? "Matériau / Composition : " : "Material / Composition: ") + (isFr ? c.material_fr : c.material_en);
+            document.getElementById('infoDesc').innerText = isFr ? c.description_fr : c.description_en;
+
+            const specsEl = document.getElementById('infoSpecs');
+            specsEl.innerHTML = '';
+            const activeSpecs = isFr ? (c.specs_fr || c.specs) : (c.specs_en || c.specs);
+            if (activeSpecs) {
+                for (const [k, v] of Object.entries(activeSpecs)) {
+                    specsEl.innerHTML += `<div><strong>${k} :</strong> <span>${v}</span></div>`;
+                }
+            }
+
+            if (doFlash) {
+                flashComponent5Times(id);
+            }
+        }
+
+        // ============================================================
+        // 2. MOTEUR 3D THREE.JS AVEC MODÈLE BLENDER CYCLES GLB
+        // ============================================================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x07090e); // Studio automotive dark neutral - contraste pur
+
+        const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(3.0, 2.2, 3.2);
+        window.camera = camera;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05; // Rendu studio contrasté et réaliste
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.target.set(0.15, 0.05, 0); // Décalé vers la droite pour centrer dans l'espace utile
+        controls.maxPolarAngle = Math.PI / 2 + 0.05;
+
+        const grid = new THREE.GridHelper(8, 24, 0x00e5ff, 0x182438);
+        grid.position.y = -0.50;
+        scene.add(grid);
+
+        // ============================================================
+        // TEXTURES PROCEDURALES PBR HAUTE FIDÉLITÉ (CANVAS 2D)
+        // ============================================================
+        function createBrushedAluNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(512, 512);
+            const d = imgData.data;
+            for (let y = 0; y < 512; y++) {
+                const lineNoise = (Math.sin(y * 1.8) * 0.5 + Math.sin(y * 7.3) * 0.3 + Math.sin(y * 23.1) * 0.2);
+                for (let x = 0; x < 512; x++) {
+                    const idx = (y * 512 + x) * 4;
+                    const grain = (Math.random() - 0.5) * 0.22 + lineNoise * 0.18;
+                    const nx = Math.min(255, Math.max(0, 128 + grain * 90));
+                    const ny = Math.min(255, Math.max(0, 128 + (Math.random() - 0.5) * 20));
+                    d[idx] = nx;
+                    d[idx + 1] = ny;
+                    d[idx + 2] = 255;
+                    d[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(6, 6);
+            return tex;
+        }
+
+        function createLaserWeldNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(256, 256);
+            const d = imgData.data;
+            for (let y = 0; y < 256; y++) {
+                for (let x = 0; x < 256; x++) {
+                    const idx = (y * 256 + x) * 4;
+                    const dist = Math.sqrt((x - 128) ** 2 + (y - 128) ** 2);
+                    const ripple = Math.sin(dist * 0.35) * 0.45;
+                    const nx = 128 + ripple * 60;
+                    const ny = 128 + Math.cos(dist * 0.35) * 40;
+                    d[idx] = Math.min(255, Math.max(0, nx));
+                    d[idx + 1] = Math.min(255, Math.max(0, ny));
+                    d[idx + 2] = 255;
+                    d[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(3, 3);
+            return tex;
+        }
+
+        function createPlasticMoldStippleNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(256, 256);
+            const d = imgData.data;
+            for (let i = 0; i < 256 * 256; i++) {
+                const idx = i * 4;
+                const noiseX = (Math.random() - 0.5) * 35;
+                const noiseY = (Math.random() - 0.5) * 35;
+                d[idx] = 128 + noiseX;
+                d[idx + 1] = 128 + noiseY;
+                d[idx + 2] = 245;
+                d[idx + 3] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(10, 10);
+            return tex;
+        }
+
+        function createEPDMRubberNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(256, 256);
+            const d = imgData.data;
+            for (let y = 0; y < 256; y++) {
+                for (let x = 0; x < 256; x++) {
+                    const idx = (y * 256 + x) * 4;
+                    const nx = 128 + Math.cos(x * 0.40) * 55 + (Math.random() - 0.5) * 25;
+                    const ny = 128 - Math.sin(y * 0.40) * 55 + (Math.random() - 0.5) * 25;
+                    d[idx] = Math.min(255, Math.max(0, nx));
+                    d[idx + 1] = Math.min(255, Math.max(0, ny));
+                    d[idx + 2] = 240;
+                    d[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(12, 12);
+            return tex;
+        }
+
+        function createKaptonTraceNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#8080ff';
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#a480ff';
+            for (let y = 16; y < 256; y += 32) {
+                ctx.beginPath();
+                ctx.moveTo(8, y);
+                ctx.lineTo(248, y);
+                ctx.stroke();
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(8, 8);
+            return tex;
+        }
+
+        const brushedAluNormalMap = createBrushedAluNormalMap();
+        const weldNormalMap = createLaserWeldNormalMap();
+        const epdmNormalMap = createEPDMRubberNormalMap();
+        const kaptonNormalMap = createKaptonTraceNormalMap();
+        const plasticNormalMap = createPlasticMoldStippleNormalMap();
+
+        // ============================================================
+        // STUDIO AUTOMOTIVE HDR EQUIRECTANGULAR ENVIRONMENT MAP
+        // ============================================================
+        function createStudioEquirectangularTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+
+            // Fond studio sombre avec dégradé neutre noir-anthracite (évite toute dominante bleue artificielle)
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, 1024);
+            bgGrad.addColorStop(0.0, '#07090e');
+            bgGrad.addColorStop(0.45, '#0c0f17');
+            bgGrad.addColorStop(0.55, '#07090e');
+            bgGrad.addColorStop(1.0, '#030406');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, 2048, 1024);
+
+            // 1. Grande boîte à lumière principale au zénith (Overhead White Softbox)
+            const topGrad = ctx.createRadialGradient(1024, 260, 30, 1024, 260, 440);
+            topGrad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+            topGrad.addColorStop(0.35, 'rgba(250, 252, 255, 0.95)');
+            topGrad.addColorStop(0.70, 'rgba(200, 210, 225, 0.35)');
+            topGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = topGrad;
+            ctx.beginPath();
+            ctx.ellipse(1024, 260, 540, 230, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Softbox avant-droite (Azimuth ~45°) - donne du relief et des éclats métalliques purs
+            const rightGrad = ctx.createRadialGradient(1550, 420, 20, 1550, 420, 320);
+            rightGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+            rightGrad.addColorStop(0.40, 'rgba(235, 240, 250, 0.70)');
+            rightGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = rightGrad;
+            ctx.beginPath();
+            ctx.ellipse(1550, 420, 270, 360, 0.15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3. Rampe néon gauche (Azimuth ~ -60°) - découpe les chanfreins métalliques en blanc neutre
+            const leftGrad = ctx.createRadialGradient(480, 440, 10, 480, 440, 280);
+            leftGrad.addColorStop(0.0, 'rgba(240, 245, 255, 0.90)');
+            leftGrad.addColorStop(0.45, 'rgba(180, 195, 215, 0.40)');
+            leftGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = leftGrad;
+            ctx.beginPath();
+            ctx.ellipse(480, 440, 170, 380, -0.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. Kicker arrière (Backlight blanc doux sur les busbars supérieurs et têtes de cellules)
+            const rearGrad = ctx.createRadialGradient(120, 380, 10, 120, 380, 240);
+            rearGrad.addColorStop(0.0, 'rgba(255, 252, 245, 0.85)');
+            rearGrad.addColorStop(0.55, 'rgba(210, 215, 225, 0.25)');
+            rearGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = rearGrad;
+            ctx.beginPath();
+            ctx.ellipse(120, 380, 150, 280, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.mapping = THREE.EquirectangularReflectionMapping;
+            return tex;
+        }
+
+        const studioEquirectTex = createStudioEquirectangularTexture();
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        scene.environment = pmrem.fromEquirectangular(studioEquirectTex).texture;
+
+        // Système d'éclairage studio PBR Chiaroscuro haute fidélité (contrasté, teintes neutres)
+        const hemiLight = new THREE.HemisphereLight(0xf1f5f9, 0x07090e, 0.12);
+        scene.add(hemiLight);
+
+        // Key Light principale : Top-Right 45° projetant les ombres de contact ciselées
+        const overheadKey = new THREE.DirectionalLight(0xfffbf2, 1.05);
+        overheadKey.position.set(2.4, 5.2, 2.8);
+        overheadKey.castShadow = true;
+        overheadKey.shadow.mapSize.set(4096, 4096);
+        overheadKey.shadow.camera.near = 0.5;
+        overheadKey.shadow.camera.far = 10;
+        overheadKey.shadow.camera.left = -0.95;
+        overheadKey.shadow.camera.right = 0.95;
+        overheadKey.shadow.camera.top = 1.15;
+        overheadKey.shadow.camera.bottom = -1.15;
+        overheadKey.shadow.bias = -0.00010;
+        overheadKey.shadow.normalBias = 0.015;
+        scene.add(overheadKey);
+
+        // Fill Light secondaire : Face-gauche douce neutre
+        const fillLight = new THREE.DirectionalLight(0xcfd8e3, 0.28);
+        fillLight.position.set(-2.5, 2.0, 2.5);
+        scene.add(fillLight);
+
+        // Rim Light / Kicker : Arrière-gauche, reflets rasants nets
+        const rimLight = new THREE.DirectionalLight(0xe2e8f0, 0.55);
+        rimLight.position.set(-3.2, 2.8, -2.6);
+        scene.add(rimLight);
+
+        // Warm Bounce : Rebond chaud léger depuis le sol
+        const warmBounce = new THREE.DirectionalLight(0xffecd2, 0.22);
+        warmBounce.position.set(2.5, 0.6, -2.0);
+        scene.add(warmBounce);
+
+        // Éclairage thermique dédié pour le préchauffage hivernal (teinte orange foncé #e65100)
+        const heatingLightL = new THREE.PointLight(0xe65100, 0, 1.8, 1.8);
+        heatingLightL.position.set(-0.13, 0.05, 0.0);
+        scene.add(heatingLightL);
+
+        const heatingLightR = new THREE.PointLight(0xe65100, 0, 1.8, 1.8);
+        heatingLightR.position.set(0.13, 0.05, 0.0);
+        scene.add(heatingLightR);
+
+        // Disque d'ombre de contact douce au sol sous le châssis
+        const shadowCanvas = document.createElement('canvas');
+        shadowCanvas.width = 512; shadowCanvas.height = 512;
+        const sCtx = shadowCanvas.getContext('2d');
+        const grad = sCtx.createRadialGradient(256, 256, 40, 256, 256, 240);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.75)');
+        grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.35)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        sCtx.fillStyle = grad;
+        sCtx.fillRect(0, 0, 512, 512);
+        const groundShadowTex = new THREE.CanvasTexture(shadowCanvas);
+
+        const groundShadowGeo = new THREE.PlaneGeometry(2.4, 3.2);
+        const groundShadowMat = new THREE.MeshBasicMaterial({
+            map: groundShadowTex,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.85
+        });
+        const groundShadowMesh = new THREE.Mesh(groundShadowGeo, groundShadowMat);
+        groundShadowMesh.rotation.x = -Math.PI / 2;
+        groundShadowMesh.position.set(0.15, -0.495, 0.0);
+        scene.add(groundShadowMesh);
+
+        const packMaster = new THREE.Group();
+        scene.add(packMaster);
+
+        const interactiveObjects = [];
+        const compMeshesById = {};
+        const packComponents = []; // Liste des 250 nœuds composants de premier niveau
+        window.scene = scene;
+        window.packMaster = packMaster;
+        window.packComponents = packComponents;
+        window.camera = camera;
+        window.controls = controls;
+        window.renderer = renderer;
+
+        function register3D(mesh, compId) {
+            mesh.userData.compId = compId;
+            interactiveObjects.push(mesh);
+            if (!compMeshesById[compId]) compMeshesById[compId] = [];
+            compMeshesById[compId].push(mesh);
+        }
+
+        function mapMeshNameToCompId(name) {
+            if (name.startsWith('TopCover')) return 'top_cover';
+            if (name.startsWith('BMS_Master')) return 'bms_board';
+            if (name.startsWith('Contactors')) return 'contactors';
+            if (name.startsWith('Pyrofuse')) return 'fuse_pyro';
+            if (name.startsWith('Precharge')) return 'precharge_resistor';
+            if (name.startsWith('Current_Sensor')) return 'current_shunt';
+            if (name.startsWith('HV_Cables')) return 'hv_cables';
+            if (name.startsWith('CoolingPlate')) return 'cooling_plate';
+            if (name.startsWith('HeatingPads')) return 'heating_pad';
+            if (name.startsWith('Damping_Pad') || name.startsWith('InsulationPads')) return 'insulation_pad';
+            if (name.startsWith('Chassis')) return 'lower_case';
+            if (name.startsWith('Connector_HV')) return 'hv_connector';
+            if (name.startsWith('Coolant_Internal_Pipes')) return 'coolant_internal_pipes';
+            if (name.startsWith('Coolant_Ports')) return 'coolant_ports';
+            if (name.startsWith('Vent_Pressure')) return 'vent_valve';
+            if (name.startsWith('Seal_Gasket')) return 'seal_gasket';
+            if (name.startsWith('Assembly_Bolts')) return 'fastening_bolts';
+            if (name.startsWith('FPC_Voltage')) return 'fpc_harness';
+            if (name.startsWith('DaisyChain')) return 'daisy_chain';
+            if (name.startsWith('BMS_Slave')) return 'slave_bms';
+            if (name.startsWith('Sensors_NTC')) return 'ntc_sensors';
+            if (name.startsWith('Cell_Prismatic')) return 'prismatic_cell';
+            if (name.startsWith('Busbar_Omega')) return 'busbars_omega';
+            if (name.startsWith('Module_') || name.startsWith('Master_Carrier')) return 'battery_module';
+            return 'lower_case';
+        }
+
+        // ============================================================
+        // 3. CHARGEMENT DU MODÈLE GLB (DIRECT + REPLI BASE64)
+        // ============================================================
+        let topCoverMesh = null;
+        let sealGasketMesh = null;
+        let assemblyBoltsMesh = null;
+        let coolingPlateMesh = null;
+        let heatingPadMesh = null;
+        const coolingMeshes = [];
+        const heatingMeshes = [];
+        let isCoverVisible = true;
+        let savedCoverVisibility = null;
+
+        const gltfLoader = new THREE.GLTFLoader();
+
+        function init3DModel(gltf) {
+            const root = gltf.scene;
+            packMaster.add(root);
+
+            // Chaque enfant direct de root est un composant indépendant (Mesh ou Group multi-matériaux)
+            const childrenList = [...root.children];
+            childrenList.forEach((node) => {
+                const name = node.name;
+                const compId = mapMeshNameToCompId(name);
+                node.userData.compId = compId;
+
+                const origPos = node.position.clone();
+                let restY = origPos.y;
+                let explY = origPos.y;
+
+                // Position au repos (CAD assemblé Frame 0) & éclatée 100% avec grand espacement vertical (visibilité optimale)
+                if (name.startsWith('TopCover')) {
+                    explY = origPos.y + 0.550; // Haut dans le champ caméra
+                    topCoverMesh = node;
+                } else if (name.startsWith('Seal_Gasket')) {
+                    explY = origPos.y + 0.460;
+                    sealGasketMesh = node;
+                } else if (name.startsWith('Assembly_Bolts')) {
+                    explY = origPos.y + 0.680; // Visserie culminant au sommet
+                    assemblyBoltsMesh = node;
+                } else if (name.startsWith('BMS_Master') || name.startsWith('Contactors') || name.startsWith('Current_Sensor') || name.startsWith('Pyrofuse') || name.startsWith('Precharge')) {
+                    explY = origPos.y + 0.380; // Étage HVJB bien au-dessus des modules
+                } else if (name.startsWith('HV_Cables')) {
+                    explY = origPos.y + 0.300;
+                } else if (name.startsWith('DaisyChain')) {
+                    explY = origPos.y + 0.150; // Faisceau inter-CMU synchronisé avec les cartes BMS_Slave
+                } else if (name.startsWith('FPC_Voltage')) {
+                    explY = origPos.y + 0.180;
+                } else if (name.startsWith('BMS_Slave')) {
+                    explY = origPos.y + 0.150;
+                } else if (name.startsWith('Busbar_Omega')) {
+                    explY = origPos.y + 0.110;
+                } else if (name.startsWith('Sensors_NTC')) {
+                    explY = origPos.y + 0.055;
+                } else if (name.startsWith('Module_CarrierFrame') || name.startsWith('Master_Carrier')) {
+                    explY = origPos.y + 0.075;
+                } else if (name.startsWith('Cell_Prismatic')) {
+                    explY = origPos.y + 0.035;
+                } else if (name.startsWith('Damping_Pad') || name.startsWith('InsulationPads')) {
+                    explY = origPos.y - 0.040; // 16 pads amortisseurs latéraux & tunnel
+                } else if (name.startsWith('HeatingPads')) {
+                    explY = origPos.y - 0.090; // Films chauffants modulaires
+                    heatingPadMesh = node;
+                } else if (name.startsWith('Coolant_Internal_Pipes')) {
+                    explY = origPos.y - 0.180; // Les tubulures descendent avec la plaque froide
+                } else if (name.startsWith('CoolingPlate')) {
+                    explY = origPos.y - 0.180;
+                    coolingPlateMesh = node;
+                } else if (name.startsWith('Chassis_DeepTray')) {
+                    explY = origPos.y - 0.320; // Bac inférieur descend largement pour dégager la vue
+                } else if (name.startsWith('Connector_HV') || name.startsWith('Coolant_Ports') || name.startsWith('Vent_Pressure')) {
+                    explY = origPos.y - 0.320; // Raccords et prise fixés sur le bac châssis
+                }
+
+                node.userData.restPos = new THREE.Vector3(origPos.x, restY, origPos.z);
+                node.userData.explodedPos = new THREE.Vector3(origPos.x, explY, origPos.z);
+                packComponents.push(node);
+
+                // Traiter tous les sous-mesh pour les matériaux, l'ombrage et le raycast
+                node.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        child.userData.compId = compId;
+                        child.userData.topNode = node;
+
+                        // Traque pour animation thermique BTMS
+                        if (name.startsWith('CoolingPlate') || name.startsWith('Coolant_Internal_Pipes')) {
+                            coolingMeshes.push(child);
+                        } else if (name.startsWith('HeatingPads')) {
+                            heatingMeshes.push(child);
+                        }
+
+                        const applyMatProperties = (slotMat) => {
+                            if (!slotMat) return slotMat;
+                            const matName = (slotMat.name || '').toLowerCase();
+
+                            // Convertir en MeshPhysicalMaterial pour débloquer clearcoat, reflets studio et texture PBR
+                            let mat = new THREE.MeshPhysicalMaterial({
+                                color: slotMat.color ? slotMat.color.clone() : new THREE.Color(0xffffff),
+                                roughness: slotMat.roughness !== undefined ? slotMat.roughness : 0.3,
+                                metalness: slotMat.metalness !== undefined ? slotMat.metalness : 0.0,
+                                name: slotMat.name
+                            });
+                            mat.emissive = new THREE.Color(0x000000);
+
+                            if (name.startsWith('Coolant_Ports')) {
+                                if (matName.includes('blue')) {
+                                    mat.metalness = 0.85;
+                                    mat.roughness = 0.20;
+                                    mat.color.setHex(0x0284c7); // Bague anodisée bleue d'admission (Inlet)
+                                    mat.envMapIntensity = 2.2;
+                                } else if (matName.includes('red')) {
+                                    mat.metalness = 0.85;
+                                    mat.roughness = 0.20;
+                                    mat.color.setHex(0xdc2626); // Bague anodisée rouge d'évacuation (Outlet)
+                                    mat.envMapIntensity = 2.2;
+                                } else if (matName.includes('rubber')) {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.80;
+                                    mat.color.setHex(0x111317);
+                                } else {
+                                    mat.metalness = 0.96;
+                                    mat.roughness = 0.15;
+                                    mat.color.setHex(0xd0dce8); // Aluminium usiné naturel brillant
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.35, 0.35);
+                                    mat.envMapIntensity = 2.0;
+                                }
+                            } else if (name.startsWith('Coolant_Internal_Pipes')) {
+                                mat.metalness = 0.94;
+                                mat.roughness = 0.18;
+                                mat.color.setHex(0xd2dde8); // Tubulures aluminium cintrées
+                                mat.normalMap = brushedAluNormalMap;
+                                mat.normalScale.set(0.30, 0.30);
+                                mat.envMapIntensity = 1.8;
+                            } else if (name.startsWith('Busbar_Omega')) {
+                                if (matName.includes('orange') || matName.includes('insulation')) {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.38;
+                                    mat.color.setHex(0xe84a00); // Gaine thermorétractable polyoléfine satinée RAL 2003 vive
+                                    mat.clearcoat = 0.20;
+                                    mat.clearcoatRoughness = 0.25;
+                                    mat.envMapIntensity = 1.2;
+                                } else if (matName.includes('weld')) {
+                                    mat.metalness = 0.94;
+                                    mat.roughness = 0.16;
+                                    mat.color.setHex(0xb8a28a); // Cordon de soudure laser Cu-Al avec zone affectée thermiquement
+                                    mat.normalMap = weldNormalMap;
+                                    mat.normalScale.set(0.60, 0.60);
+                                    mat.envMapIntensity = 2.2;
+                                } else {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xe87438); // Cuivre pur électrolytique rose-saumon Cu-ETP éclatant
+                                    mat.clearcoat = 0.35;
+                                    mat.clearcoatRoughness = 0.15;
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.20, 0.20);
+                                    mat.envMapIntensity = 2.4;
+                                }
+                            } else if (name.startsWith('Cell_Prismatic')) {
+                                if (matName.includes('alu') || matName.includes('lid')) {
+                                    mat.metalness = 0.92;
+                                    mat.roughness = 0.20;
+                                    mat.color.setHex(0xd2dce6); // Couvercle cellule aluminium brossé
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.25, 0.25);
+                                    mat.envMapIntensity = 1.8;
+                                } else if (matName.includes('copper_pure') || matName.includes('pos')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xde6b32); // Borne cuivre positive (+)
+                                    mat.envMapIntensity = 2.2;
+                                } else if (matName.includes('tinned') || matName.includes('term')) {
+                                    mat.metalness = 0.95;
+                                    mat.roughness = 0.16;
+                                    mat.color.setHex(0xd0dae5); // Borne étamée négative (-)
+                                    mat.envMapIntensity = 2.0;
+                                } else {
+                                    mat.metalness = 0.12;
+                                    mat.roughness = 0.16;
+                                    mat.color.setHex(0x0a2e72); // Gaine bleue PET diélectrique cobalt profonde (qualité CATL / Samsung SDI)
+                                    mat.clearcoat = 0.88;
+                                    mat.clearcoatRoughness = 0.10;
+                                    mat.envMapIntensity = 1.6;
+                                }
+                            } else if (name.startsWith('DaisyChain')) {
+                                if (matName.includes('wire') || matName.includes('twisted')) {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.32;
+                                    mat.color.setHex(0xe08500); // Fils torsadés de signal différentiel isoSPI
+                                    mat.envMapIntensity = 1.1;
+                                } else if (matName.includes('conn') || matName.includes('grey')) {
+                                    mat.metalness = 0.08;
+                                    mat.roughness = 0.38;
+                                    mat.color.setHex(0x22262d); // Corps de connecteur automobile étanche PA66
+                                    mat.envMapIntensity = 0.8;
+                                } else if (matName.includes('orange')) {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.35;
+                                    mat.color.setHex(0xd64000); // Loquet de verrouillage CPA orange sécurité
+                                } else {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.76;
+                                    mat.color.setHex(0x131518); // Gaine cannelée et tresse textile noire du faisceau
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.35, 0.35);
+                                    mat.envMapIntensity = 0.5;
+                                }
+                            } else if (name.startsWith('BMS_Slave')) {
+                                if (matName.includes('pcb') || matName.includes('green')) {
+                                    mat.metalness = 0.08;
+                                    mat.roughness = 0.25;
+                                    mat.color.setHex(0x054818); // Vernis épargne vert FR4 multicouche brillant
+                                    mat.clearcoat = 0.75;
+                                    mat.clearcoatRoughness = 0.12;
+                                    mat.envMapIntensity = 1.2;
+                                } else if (matName.includes('ic') || matName.includes('black')) {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.40;
+                                    mat.color.setHex(0x121417); // Boîtier puce AFE QFP48
+                                } else if (matName.includes('gold') || matName.includes('pin')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.10;
+                                    mat.color.setHex(0xf59e0b); // Pastilles test dorées ENIG
+                                    mat.envMapIntensity = 2.2;
+                                } else {
+                                    mat.metalness = 0.10;
+                                    mat.roughness = 0.35;
+                                    mat.color.setHex(0x282c34); // Embase femelle du connecteur
+                                }
+                            } else if (name.startsWith('BMS_Master')) {
+                                if (matName.includes('alu') || matName.includes('endplate')) {
+                                    mat.metalness = 0.90;
+                                    mat.roughness = 0.22;
+                                    mat.color.setHex(0x5a6878); // Boîtier aluminium moulé dissipateur à 9 ailettes
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.30, 0.30);
+                                    mat.envMapIntensity = 1.8;
+                                } else {
+                                    mat.metalness = 0.10;
+                                    mat.roughness = 0.38;
+                                    mat.color.setHex(0x181a1f); // Connecteurs triples automobiles
+                                }
+                            } else if (name.startsWith('Contactors')) {
+                                if (matName.includes('copper')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xde6b32); // Plots de puissance en cuivre massif Cu-ETP M10
+                                    mat.envMapIntensity = 2.4;
+                                } else if (matName.includes('bolts') || matName.includes('steel')) {
+                                    mat.metalness = 0.95;
+                                    mat.roughness = 0.18;
+                                    mat.color.setHex(0xdbe3ea); // Écrous & rondelles d'assemblage zingués / inox
+                                    mat.envMapIntensity = 2.0;
+                                } else {
+                                    mat.metalness = 0.06;
+                                    mat.roughness = 0.40;
+                                    mat.color.setHex(0x16181d); // Boîtier résine époxy haute température scellée
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.18, 0.18);
+                                    mat.envMapIntensity = 1.1;
+                                }
+                            } else if (name.startsWith('Pyrofuse')) {
+                                if (matName.includes('blue') || matName.includes('squib')) {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.28;
+                                    mat.color.setHex(0x0284c7); // Prise squib BT bleu éclatant
+                                    mat.clearcoat = 0.40;
+                                } else if (matName.includes('label') || matName.includes('white')) {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.45;
+                                    mat.color.setHex(0xf8fafc); // Étiquette technique blanche d'identification
+                                } else if (matName.includes('red') || matName.includes('fuse')) {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.30;
+                                    mat.color.setHex(0xdc2626); // Témoin cartouche pyrotechnique rouge
+                                } else if (matName.includes('tinned') || matName.includes('term')) {
+                                    mat.metalness = 0.95;
+                                    mat.roughness = 0.18;
+                                    mat.color.setHex(0xd5dfea); // Bornes plates cuivre étamé / nickelé
+                                    mat.envMapIntensity = 2.0;
+                                } else if (matName.includes('bolts') || matName.includes('steel')) {
+                                    mat.metalness = 0.96;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xe2e8f0); // Goujon fileté M8 & écrou inox
+                                    mat.envMapIntensity = 2.2;
+                                } else if (matName.includes('black') || matName.includes('ceramic')) {
+                                    mat.metalness = 0.08;
+                                    mat.roughness = 0.35;
+                                    mat.color.setHex(0x181a1f); // Cadre noir du connecteur squib
+                                } else if (matName.includes('copper')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xde6b32);
+                                    mat.envMapIntensity = 2.2;
+                                } else {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.42;
+                                    mat.color.setHex(0xd64000); // Boîtier orange sécurité PBT-GF30 mat RAL 2003
+                                    mat.clearcoat = 0.20;
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.18, 0.18);
+                                }
+                            } else if (name.startsWith('Precharge')) {
+                                if (matName.includes('gold')) {
+                                    mat.metalness = 0.90;
+                                    mat.roughness = 0.20;
+                                    mat.color.setHex(0xd4a017); // Boîtier aluminium anodisé or à ailettes
+                                    mat.clearcoat = 0.40;
+                                    mat.envMapIntensity = 2.0;
+                                } else {
+                                    mat.metalness = 0.05;
+                                    mat.roughness = 0.35;
+                                    mat.color.setHex(0x121417); // Relais compact
+                                }
+                            } else if (name.startsWith('Current_Sensor')) {
+                                if (matName.includes('manganin') || matName.includes('shunt')) {
+                                    mat.metalness = 0.88;
+                                    mat.roughness = 0.28;
+                                    mat.color.setHex(0x8a6b5c); // Lame centrale en alliage Manganin
+                                    mat.envMapIntensity = 1.4;
+                                } else if (matName.includes('pcb') || matName.includes('green')) {
+                                    mat.color.setHex(0x054818); // Carte fille ADC 24 bits
+                                    mat.clearcoat = 0.60;
+                                } else {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xde6b32); // Embouts cuivre pur étamé
+                                    mat.envMapIntensity = 2.2;
+                                }
+                            } else if (name.startsWith('HV_Cables')) {
+                                if (matName.includes('bolts') || matName.includes('steel') || matName.includes('inox')) {
+                                    mat.metalness = 0.96;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xd0dce8); // Colliers P-clips inox
+                                    mat.envMapIntensity = 2.0;
+                                } else {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.52;
+                                    mat.color.setHex(0xd64000); // Gaine silicone souple automobile RAL 2003 véritable
+                                    mat.clearcoat = 0.15;
+                                    mat.clearcoatRoughness = 0.40;
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.12, 0.12);
+                                    mat.envMapIntensity = 1.0;
+                                }
+                            } else if (name.startsWith('Damping_Pad') || name.startsWith('InsulationPads')) {
+                                mat.metalness = 0.02;
+                                mat.roughness = 0.82;
+                                mat.color.setHex(0x111317); // Élastomère EPDM noir anthracite profond
+                                mat.normalMap = epdmNormalMap;
+                                mat.normalScale.set(0.75, 0.75);
+                                mat.envMapIntensity = 0.35;
+                            } else if (name.startsWith('Module_CarrierFrame') || name.startsWith('Master_Carrier')) {
+                                if (matName.includes('endplate') || matName.includes('alu')) {
+                                    mat.metalness = 0.90;
+                                    mat.roughness = 0.24;
+                                    mat.color.setHex(0x5a6778); // Flasques compression aluminium fonderie
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.35, 0.35);
+                                    mat.envMapIntensity = 1.6;
+                                } else if (matName.includes('tie') || matName.includes('inox')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.12;
+                                    mat.color.setHex(0xdce3ea); // Tirants inox brossé
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.30, 0.30);
+                                    mat.envMapIntensity = 2.2;
+                                } else {
+                                    mat.metalness = 0.04;
+                                    mat.roughness = 0.36;
+                                    mat.color.setHex(0x14171d); // Cage PA66-GF30 graphite foncé
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.25, 0.25);
+                                    mat.envMapIntensity = 0.70;
+                                }
+                            } else if (name.startsWith('HeatingPads')) {
+                                mat.side = THREE.DoubleSide;
+                                mat.color.setHex(0x9a3412); // Polyimide Kapton ambré cuivré
+                                mat.roughness = 0.24;
+                                mat.metalness = 0.22;
+                                mat.clearcoat = 0.60;
+                                mat.clearcoatRoughness = 0.12;
+                                mat.normalMap = kaptonNormalMap;
+                                mat.normalScale.set(0.50, 0.50);
+                                mat.transparent = true;
+                                mat.opacity = 0.85;
+                                mat.envMapIntensity = 1.2;
+                            } else if (name.startsWith('FPC_Voltage')) {
+                                mat.color.setHex(0xb45309); // Polyimide ambré translucide
+                                mat.roughness = 0.35;
+                                mat.metalness = 0.15;
+                                mat.clearcoat = 0.50;
+                                mat.transparent = true;
+                                mat.opacity = 0.55;
+                                mat.depthWrite = false;
+                            } else if (name.startsWith('Sensors_NTC')) {
+                                if (matName.includes('yellow') || matName.includes('sleeve')) {
+                                    mat.color.setHex(0xeab308); // Gaine thermo jaune
+                                    mat.roughness = 0.30;
+                                } else if (matName.includes('wire') || matName.includes('blue')) {
+                                    mat.color.setHex(0x2563eb); // Fils silicone bleu
+                                    mat.roughness = 0.35;
+                                } else {
+                                    mat.color.setHex(0x0f172a); // Perle époxy noire
+                                    mat.roughness = 0.15;
+                                    mat.clearcoat = 0.8;
+                                }
+                            } else if (name.startsWith('TopCover')) {
+                                mat.metalness = 0.02;
+                                mat.roughness = 0.88; // Finition cataphorèse mate anti-éblouissement
+                                mat.color.setHex(0x101216); // Noir RAL 9005 profond
+                                mat.clearcoat = 0.08;
+                                mat.clearcoatRoughness = 0.60;
+                                mat.envMapIntensity = 0.08; // Ne capte pas l'éblouissement zénithal
+                                mat.normalMap = plasticNormalMap;
+                                mat.normalScale.set(0.12, 0.12);
+                            } else if (name.startsWith('Chassis_DeepTray')) {
+                                if (matName.includes('bolts') || matName.includes('steel')) {
+                                    mat.metalness = 0.96;
+                                    mat.roughness = 0.14;
+                                    mat.color.setHex(0xdbe2ec); // Douilles de fixation caisse M12 en acier zingué
+                                    mat.envMapIntensity = 2.0;
+                                } else if (matName.includes('endplate') || matName.includes('rail')) {
+                                    mat.metalness = 0.90;
+                                    mat.roughness = 0.22;
+                                    mat.color.setHex(0x56657a); // Profilé d'extrusion aluminium multi-chambres
+                                    mat.clearcoat = 0.20;
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.35, 0.35);
+                                    mat.envMapIntensity = 1.8;
+                                } else {
+                                    mat.metalness = 0.88;
+                                    mat.roughness = 0.26;
+                                    mat.color.setHex(0x485568); // Bac aluminium structural embouti
+                                    mat.clearcoat = 0.15;
+                                    mat.clearcoatRoughness = 0.30;
+                                    mat.envMapIntensity = 1.6;
+                                    mat.normalMap = brushedAluNormalMap;
+                                    mat.normalScale.set(0.40, 0.40);
+                                }
+                            } else if (name.startsWith('Assembly_Bolts')) {
+                                mat.metalness = 0.96;
+                                mat.roughness = 0.14;
+                                mat.color.setHex(0xdbe2ec); // Acier zingué lamellaire
+                                mat.envMapIntensity = 2.0;
+                            } else if (name.startsWith('CoolingPlate')) {
+                                mat.metalness = 0.92;
+                                mat.roughness = 0.20;
+                                mat.color.setHex(0x56687e); // Plaque froide emboutie aluminium 3003
+                                mat.envMapIntensity = 1.6;
+                                mat.normalMap = brushedAluNormalMap;
+                                mat.normalScale.set(0.55, 0.55);
+                            } else if (name.startsWith('Connector_HV')) {
+                                if (matName.includes('orange') || matName.includes('pbr_hv')) {
+                                    mat.metalness = 0.02;
+                                    mat.roughness = 0.38;
+                                    mat.color.setHex(0xe84a00); // Boîtier PBT orange sécurité OEM RAL 2003 (fidèle à la photo)
+                                    mat.clearcoat = 0.25;
+                                    mat.clearcoatRoughness = 0.25;
+                                    mat.normalMap = plasticNormalMap;
+                                    mat.normalScale.set(0.12, 0.12);
+                                    mat.envMapIntensity = 1.2;
+                                } else if (matName.includes('bolts') || matName.includes('steel') || matName.includes('silver') || matName.includes('hardware')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.12;
+                                    mat.color.setHex(0xe8eff8); // Douilles argentées compression limiters & collier CEM estampé
+                                    mat.envMapIntensity = 2.6;
+                                } else if (matName.includes('copper') || matName.includes('tinned')) {
+                                    mat.metalness = 0.98;
+                                    mat.roughness = 0.12;
+                                    mat.color.setHex(0xe87438); // Broches de contact en cuivre pur étamé
+                                    mat.envMapIntensity = 2.4;
+                                } else {
+                                    mat.metalness = 0.06;
+                                    mat.roughness = 0.40;
+                                    mat.color.setHex(0x111317); // Insert noir 2 pôles avec funnels & pointes IP2X
+                                    mat.envMapIntensity = 0.7;
+                                }
+                            }
+                            return mat;
+                        };
+
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material = child.material.map(m => applyMatProperties(m));
+                            } else {
+                                child.material = applyMatProperties(child.material);
+                            }
+                        }
+                        if (name.startsWith('HeatingPads')) {
+                            child.userData.normalMat = child.material;
+                            child.userData.heatingActiveMat = new THREE.MeshBasicMaterial({
+                                color: 0xe65100,
+                                toneMapped: false,
+                                side: THREE.DoubleSide
+                            });
+                        }
+                        register3D(child, compId);
+                    }
+                });
+            });
+
+            // Appliquer l'état initial assemblé (0%)
+            applyExplosion(0.0);
+
+            // Masquer le loader
+            const loaderEl = document.getElementById('loader-overlay');
+            if (loaderEl) {
+                loaderEl.style.opacity = '0';
+                setTimeout(() => { loaderEl.style.display = 'none'; }, 600);
+            }
+        }
+
+        function loadPackGLB() {
+            // Tentative 1 : Chargement direct du fichier GLB
+            gltfLoader.load(
+                './ev_battery_pack_96s1p.glb',
+                (gltf) => {
+                    console.log("Modèle GLB chargé avec succès via URL directe.");
+                    init3DModel(gltf);
+                },
+                (xhr) => {
+                    if (xhr.lengthComputable) {
+                        const pct = Math.round((xhr.loaded / xhr.total) * 100);
+                        document.getElementById('loader-text').innerText = `Chargement 3D : ${pct}%`;
+                    }
+                },
+                (err) => {
+                    console.warn("Échec du chargement direct (restriction CORS locale), bascule sur repli base64...");
+                    if (window.EV_PACK_GLB_BASE64) {
+                        const dataUri = 'data:model/gltf-binary;base64,' + window.EV_PACK_GLB_BASE64;
+                        gltfLoader.load(dataUri, (gltf) => {
+                            console.log("Modèle GLB chargé avec succès via base64 embarqué.");
+                            init3DModel(gltf);
+                        });
+                    } else {
+                        console.error("Aucune source 3D disponible.");
+                        document.getElementById('loader-text').innerText = "Erreur de chargement du modèle 3D.";
+                    }
+                }
+            );
+        }
+
+        // ============================================================
+        // 4. ANIMATION PARTICULES FLUIDE CALOPORTEUR (BTMS)
+        // ============================================================
+        function createGlowDotTexture(isOrange = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            if (isOrange) {
+                g.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+                g.addColorStop(0.25, 'rgba(255, 122, 0, 0.95)');
+                g.addColorStop(0.65, 'rgba(255, 70, 0, 0.40)');
+                g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            } else {
+                g.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+                g.addColorStop(0.25, 'rgba(0, 85, 255, 0.98)');
+                g.addColorStop(0.65, 'rgba(0, 50, 200, 0.45)');
+                g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            }
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Spline fermée 3D épousant rigoureusement les 16 canaux emboutis de la plaque froide (1140 x 1220 mm)
+        function generateExactSerpentinePath() {
+            const pts = [];
+            const yMin = -0.585; // Fond de la plaque froide (arrière)
+            const yMax = +0.585; // Avant de la plaque froide (virages U-bends)
+            
+            // 16 canaux calibrés au millimètre sur la plaque froide MEB (X in [-0.530, +0.530])
+            const leftLanes = [];
+            const rightLanes = [];
+            for (let i = 0; i < 8; i++) {
+                leftLanes.push(-0.530 + 0.460 * (i / 7));
+                rightLanes.push(+0.070 + 0.460 * (i / 7));
+            }
+
+            function addTurn(x1, x2, yCenter, isTop) {
+                const xc = (x1 + x2) * 0.5;
+                const r = Math.abs(x2 - x1) * 0.5;
+                const segs = 6;
+                for (let i = 1; i <= segs; i++) {
+                    const u = i / segs;
+                    const ang = isTop ? (Math.PI * (1 - u)) : (Math.PI * (1 + u));
+                    const px = xc + r * Math.cos(ang);
+                    const pz = yCenter + r * Math.sin(ang);
+                    pts.push(new THREE.Vector3(px, 0, pz));
+                }
+            }
+
+            // Rangée gauche (8 canaux)
+            for (let i = 0; i < 8; i++) {
+                const lane = leftLanes[i];
+                if (i % 2 === 0) {
+                    pts.push(new THREE.Vector3(lane, 0, yMax));
+                    pts.push(new THREE.Vector3(lane, 0, yMin));
+                    if (i < 7) addTurn(leftLanes[i], leftLanes[i + 1], yMin, false);
+                } else {
+                    pts.push(new THREE.Vector3(lane, 0, yMin));
+                    pts.push(new THREE.Vector3(lane, 0, yMax));
+                    if (i < 7) addTurn(leftLanes[i], leftLanes[i + 1], yMax, true);
+                }
+            }
+
+            // Franchissement central avant au-dessus du tunnel (de leftLanes[7] à rightLanes[0])
+            addTurn(leftLanes[7], rightLanes[0], yMax, true);
+
+            // Rangée droite (8 canaux)
+            for (let i = 0; i < 8; i++) {
+                const lane = rightLanes[i];
+                if (i % 2 === 0) {
+                    pts.push(new THREE.Vector3(lane, 0, yMax));
+                    pts.push(new THREE.Vector3(lane, 0, yMin));
+                    if (i < 7) addTurn(rightLanes[i], rightLanes[i + 1], yMin, false);
+                } else {
+                    pts.push(new THREE.Vector3(lane, 0, yMin));
+                    pts.push(new THREE.Vector3(lane, 0, yMax));
+                    if (i < 7) addTurn(rightLanes[i], rightLanes[i + 1], yMax, true);
+                }
+            }
+
+            // Collecteur transversal avant fermant la boucle vers le point de départ
+            pts.push(new THREE.Vector3(rightLanes[7], 0, 0.610));
+            pts.push(new THREE.Vector3(0.000, 0, 0.610));
+            pts.push(new THREE.Vector3(leftLanes[0], 0, 0.610));
+
+            return pts;
+        }
+
+        const serpentinePoints = generateExactSerpentinePath();
+        const serpentineCurve = new THREE.CatmullRomCurve3(serpentinePoints, true, 'centripetal', 0.15);
+
+        const FLUID_PARTICLE_COUNT = 520;
+        const fluidGeometry = new THREE.BufferGeometry();
+        const fluidPositions = new Float32Array(FLUID_PARTICLE_COUNT * 3);
+        const fluidProgress = new Float32Array(FLUID_PARTICLE_COUNT);
+        const fluidSpeeds = new Float32Array(FLUID_PARTICLE_COUNT);
+
+        for (let i = 0; i < FLUID_PARTICLE_COUNT; i++) {
+            fluidProgress[i] = Math.random();
+            fluidSpeeds[i] = 0.0011 + Math.random() * 0.0007; // Débit continu régulier
+            const pt = serpentineCurve.getPointAt(fluidProgress[i]);
+            fluidPositions[i * 3 + 0] = pt.x + (Math.random() - 0.5) * 0.006;
+            fluidPositions[i * 3 + 1] = -0.053;
+            fluidPositions[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 0.006;
+        }
+
+        fluidGeometry.setAttribute('position', new THREE.BufferAttribute(fluidPositions, 3));
+        const fluidMat = new THREE.PointsMaterial({
+            color: 0x0055ff, // Bleu cobalt saturé et percutant
+            size: 0.052,
+            map: createGlowDotTexture(false),
+            transparent: true,
+            opacity: 0.0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const fluidParticles = new THREE.Points(fluidGeometry, fluidMat);
+        packMaster.add(fluidParticles);
+
+        // ============================================================
+        // 5. GESTION DE L'ÉCLATEMENT CONTINU (0% À 100%)
+        // ============================================================
+        function applyExplosion(t) {
+            packComponents.forEach(comp => {
+                if (comp.userData.restPos && comp.userData.explodedPos) {
+                    comp.position.lerpVectors(comp.userData.restPos, comp.userData.explodedPos, t);
+                }
+            });
+
+            // Ajuster la hauteur des particules caloporteurs sur la plaque froide
+            const py = (coolingPlateMesh ? coolingPlateMesh.position.y : -0.065) + 0.015;
+            const pos = fluidGeometry.attributes.position.array;
+            for (let i = 0; i < FLUID_PARTICLE_COUNT; i++) {
+                pos[i * 3 + 1] = py;
+            }
+            fluidGeometry.attributes.position.needsUpdate = true;
+        }
+
+        const slider = document.getElementById('explodeSlider');
+        const sliderVal = document.getElementById('sliderVal');
+
+        slider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) / 100;
+            sliderVal.innerText = `${Math.round(val * 100)}%`;
+            applyExplosion(val);
+            clearActiveViewButtons();
+            if (val === 0) document.getElementById('viewAssembled').classList.add('active');
+            else if (val === 1) document.getElementById('viewExploded').classList.add('active');
+        });
+
+        function clearActiveViewButtons() {
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function setExplodeWithAnim(targetVal, onComplete) {
+            gsap.to(slider, {
+                value: targetVal,
+                duration: 1.2,
+                ease: "power2.inOut",
+                onUpdate: () => {
+                    const val = parseFloat(slider.value) / 100;
+                    sliderVal.innerText = `${Math.round(val * 100)}%`;
+                    applyExplosion(val);
+                },
+                onComplete: onComplete
+            });
+        }
+
+        function setCoverVisibility(visible) {
+            isCoverVisible = visible;
+            const coverNodes = [topCoverMesh, sealGasketMesh, assemblyBoltsMesh];
+            coverNodes.forEach(node => {
+                if (node) {
+                    node.visible = visible;
+                    node.traverse(child => {
+                        child.visible = visible;
+                    });
+                }
+            });
+            const btn = document.getElementById('btnToggleCover');
+            if (btn) {
+                btn.classList.toggle('active', visible);
+                btn.innerText = visible
+                    ? (currentLang === 'fr' ? '👁️ Couvercle : Visible' : '👁️ Top Cover: Visible')
+                    : (currentLang === 'fr' ? '🙈 Couvercle : Masqué' : '🙈 Top Cover: Hidden');
+            }
+        }
+
+        function restoreCoverVisibilityIfNeeded() {
+            if (savedCoverVisibility !== null) {
+                setCoverVisibility(savedCoverVisibility);
+                savedCoverVisibility = null;
+            }
+        }
+
+        function isObjectActuallyVisible(obj) {
+            let current = obj;
+            while (current) {
+                if (current.visible === false) return false;
+                current = current.parent;
+            }
+            return true;
+        }
+
+        function setXRay(active) {
+            isXRayActive = active;
+            if (topCoverMesh) {
+                topCoverMesh.visible = true;
+                topCoverMesh.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        if (active) {
+                            child.material.transparent = true;
+                            child.material.depthWrite = false;
+                            child.material.color.setHex(0x38bdf8);
+                            gsap.to(child.material, { opacity: 0.22, duration: 0.4 });
+                        } else {
+                            child.material.depthWrite = true;
+                            child.material.color.setHex(0x0f1115); // Peinture noire satinée
+                            gsap.to(child.material, {
+                                opacity: 1.0,
+                                duration: 0.4,
+                                onComplete: () => {
+                                    child.material.transparent = false;
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+
+        let isPackClosedMode = true;
+
+        document.getElementById('btnToggleCover').addEventListener('click', () => {
+            savedCoverVisibility = null; // L'utilisateur a explicitement forcé l'état
+            setCoverVisibility(!isCoverVisible);
+        });
+
+        // [📦 Pack Fermé]
+        document.getElementById('viewAssembled').addEventListener('click', () => {
+            savedCoverVisibility = null;
+            clearActiveViewButtons();
+            document.getElementById('viewAssembled').classList.add('active');
+            isPackClosedMode = true;
+            setCoverVisibility(true);
+            setXRay(false);
+            setExplodeWithAnim(0);
+            gsap.to(camera.position, { x: 2.8, y: 2.0, z: 3.0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.15, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        // [👻 Rayons X / Écorché]
+        document.getElementById('viewXRay').addEventListener('click', () => {
+            savedCoverVisibility = null;
+            clearActiveViewButtons();
+            document.getElementById('viewXRay').classList.add('active');
+            isPackClosedMode = false;
+            setCoverVisibility(true);
+            setXRay(true);
+            setExplodeWithAnim(0);
+            gsap.to(camera.position, { x: 2.6, y: 1.8, z: 2.8, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.15, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        // [💥 Vue Éclatée Grande Amplitude]
+        document.getElementById('viewExploded').addEventListener('click', () => {
+            savedCoverVisibility = null;
+            clearActiveViewButtons();
+            document.getElementById('viewExploded').classList.add('active');
+            isPackClosedMode = false;
+            setCoverVisibility(true);
+            setXRay(false);
+            setExplodeWithAnim(100);
+            gsap.to(camera.position, { x: 3.6, y: 3.0, z: 3.8, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.15, y: 0.18, z: 0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        // ============================================================
+        // 6. ANGLES DE VUE CAMÉRA DÉDIÉS
+        // ============================================================
+        function clearActiveAngleButtons() {
+            document.querySelectorAll('.angle-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        document.getElementById('btnAngleIso').addEventListener('click', () => {
+            clearActiveAngleButtons();
+            document.getElementById('btnAngleIso').classList.add('active');
+            restoreCoverVisibilityIfNeeded();
+            gsap.to(camera.position, { x: 3.0, y: 2.2, z: 3.2, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.20, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        document.getElementById('btnAngleTop').addEventListener('click', () => {
+            clearActiveAngleButtons();
+            document.getElementById('btnAngleTop').classList.add('active');
+            restoreCoverVisibilityIfNeeded();
+            if (parseFloat(slider.value) < 20) setXRay(true);
+            gsap.to(camera.position, { x: 0.01, y: 3.4, z: 0.01, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        document.getElementById('btnAngleBms').addEventListener('click', () => {
+            clearActiveAngleButtons();
+            document.getElementById('btnAngleBms').classList.add('active');
+            if (savedCoverVisibility === null) {
+                savedCoverVisibility = isCoverVisible;
+            }
+            setCoverVisibility(false); // Masque le couvercle pour dégager entièrement la baie technique
+            gsap.to(camera.position, { x: 0.24, y: 0.45, z: -1.15, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.06, y: 0.10, z: -0.65, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        document.getElementById('btnAngleCells').addEventListener('click', () => {
+            clearActiveAngleButtons();
+            document.getElementById('btnAngleCells').classList.add('active');
+            if (savedCoverVisibility === null) {
+                savedCoverVisibility = isCoverVisible;
+            }
+            setCoverVisibility(false); // Dégage le dessus des modules
+            if (parseFloat(slider.value) < 30) setExplodeWithAnim(45);
+            gsap.to(camera.position, { x: 0.70, y: 0.65, z: 0.40, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.20, y: 0.10, z: 0.10, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        document.getElementById('btnAngleTray').addEventListener('click', () => {
+            clearActiveAngleButtons();
+            document.getElementById('btnAngleTray').classList.add('active');
+            restoreCoverVisibilityIfNeeded();
+            if (parseFloat(slider.value) < 35) setExplodeWithAnim(45);
+            gsap.to(camera.position, { x: 2.2, y: 0.30, z: 0.0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: 0.0, y: -0.10, z: 0.0, duration: 1.2, ease: "power2.inOut" });
+        });
+
+        // ============================================================
+        // 7. SIMULATEUR DE GESTION THERMIQUE (BTMS)
+        // ============================================================
+                // ============================================================
+        // SOLUTION 1 & SOLUTION 2 COMBINÉES POUR VISIBILITÉ BTMS
+        // Solution 1 : Auto-Lift des modules à 35% de hauteur
+        // Solution 2 : Thermal X-Ray (semi-transparence fantôme des modules)
+        // ============================================================
+        let btmsAutoLifted = false;
+
+        function setBtmsGhosting(active) {
+            packComponents.forEach(comp => {
+                const name = comp.name;
+                // Ne jamais rendre transparents la plaque froide, tubulures ou films chauffants
+                if (name.startsWith('CoolingPlate') || name.startsWith('Coolant_') || name.startsWith('HeatingPads')) {
+                    return;
+                }
+                comp.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        if (active) {
+                            if (child.userData.origOpacity === undefined) {
+                                child.userData.origOpacity = child.material.opacity !== undefined ? child.material.opacity : 1.0;
+                                child.userData.origTransparent = child.material.transparent || false;
+                                child.userData.origDepthWrite = child.material.depthWrite !== undefined ? child.material.depthWrite : true;
+                            }
+                            child.material.transparent = true;
+                            child.material.depthWrite = false;
+                            gsap.to(child.material, { opacity: 0.22, duration: 0.5 });
+                        } else {
+                            if (child.userData.origOpacity !== undefined) {
+                                gsap.to(child.material, {
+                                    opacity: child.userData.origOpacity,
+                                    duration: 0.5,
+                                    onComplete: () => {
+                                        child.material.transparent = child.userData.origTransparent;
+                                        child.material.depthWrite = child.userData.origDepthWrite;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        let activeBtmsMode = 'off';
+        const btnCool = document.getElementById('btnCooling');
+        const btnHeat = document.getElementById('btnHeating');
+        const teleBox = document.getElementById('telemetryBox');
+
+        btnCool.addEventListener('click', () => {
+            if (activeBtmsMode === 'cooling') stopBtms();
+            else startCooling();
+        });
+
+        btnHeat.addEventListener('click', () => {
+            if (activeBtmsMode === 'heating') stopBtms();
+            else startHeating();
+        });
+
+                function stopBtms() {
+            activeBtmsMode = 'off';
+            btnCool.classList.remove('active');
+            btnHeat.classList.remove('active');
+            teleBox.style.display = 'none';
+
+            // Désactiver le ghosting semi-transparent (Solution 2)
+            setBtmsGhosting(false);
+
+            // Si auto-lifté pour le BTMS, redescendre en douceur (Solution 1)
+            if (btmsAutoLifted) {
+                btmsAutoLifted = false;
+                setExplodeWithAnim(0);
+                isPackClosedMode = true;
+            }
+
+            gsap.to(fluidMat, { opacity: 0.0, duration: 0.4 });
+            coolingMeshes.forEach(mesh => {
+                if (mesh.material && mesh.material.emissive) {
+                    mesh.material.emissive.setHex(0x000000);
+                    mesh.material.emissiveIntensity = 0;
+                }
+            });
+            heatingMeshes.forEach(mesh => {
+                if (mesh.userData && mesh.userData.normalMat) {
+                    mesh.material = mesh.userData.normalMat;
+                }
+                if (mesh.material) {
+                    mesh.material.color.setHex(0x9a3412);
+                    mesh.material.roughness = 0.24;
+                    mesh.material.metalness = 0.22;
+                    mesh.material.clearcoat = 0.60;
+                    if (mesh.material.emissive) {
+                        mesh.material.emissive.setHex(0x000000);
+                        mesh.material.emissiveIntensity = 0;
+                    }
+                    mesh.material.transparent = true;
+                    mesh.material.opacity = 0.85;
+                }
+            });
+            if (typeof heatingLightL !== 'undefined') {
+                heatingLightL.intensity = 0;
+                heatingLightR.intensity = 0;
+            }
+        }
+
+                function startCooling() {
+            activeBtmsMode = 'cooling';
+            btnCool.classList.add('active');
+            btnHeat.classList.remove('active');
+
+            // Solution 2 : Activer la semi-transparence thermique (Ghosting) sur les modules et composants supérieurs
+            setBtmsGhosting(true);
+
+            // Solution 1 : Auto-Lift des modules à 35% si le pack était fermé ou trop bas
+            if (parseFloat(slider.value) < 35) {
+                btmsAutoLifted = true;
+                setExplodeWithAnim(35);
+                isPackClosedMode = false;
+            }
+
+            // Réinitialiser l'effet de chauffe précédent
+            heatingMeshes.forEach(mesh => {
+                if (mesh.userData && mesh.userData.normalMat) {
+                    mesh.material = mesh.userData.normalMat;
+                }
+                if (mesh.material) {
+                    mesh.material.color.setHex(0x9a3412);
+                    mesh.material.roughness = 0.24;
+                    mesh.material.metalness = 0.22;
+                    mesh.material.clearcoat = 0.60;
+                    if (mesh.material.emissive) {
+                        mesh.material.emissive.setHex(0x000000);
+                        mesh.material.emissiveIntensity = 0;
+                    }
+                    mesh.material.transparent = true;
+                    mesh.material.opacity = 0.85;
+                }
+            });
+            if (typeof heatingLightL !== 'undefined') {
+                heatingLightL.intensity = 0;
+                heatingLightR.intensity = 0;
+            }
+
+            gsap.to(fluidMat, { opacity: 1.0, duration: 0.5 });
+            fluidMat.color.setHex(0x0055ff);
+
+            teleBox.style.display = 'block';
+            teleBox.className = 'telemetry-bar telemetry-cooling';
+            updateTelemetryText();
+
+            // Cadrage fluide centré sur le pack et la serpentine
+            gsap.to(camera.position, { x: 2.10, y: 1.40, z: 1.95, duration: 1.2, ease: "power2.out" });
+            gsap.to(controls.target, { x: 0.05, y: -0.05, z: 0.0, duration: 1.2, ease: "power2.out" });
+        }
+
+                function startHeating() {
+            activeBtmsMode = 'heating';
+            btnHeat.classList.add('active');
+            btnCool.classList.remove('active');
+
+            // Solution 2 : Activer la semi-transparence thermique (Ghosting)
+            setBtmsGhosting(true);
+
+            // Solution 1 : Auto-Lift des modules à 35% si le pack était fermé ou trop bas
+            if (parseFloat(slider.value) < 35) {
+                btmsAutoLifted = true;
+                setExplodeWithAnim(35);
+                isPackClosedMode = false;
+            }
+
+            // Réinitialiser le circuit de refroidissement précédent
+            coolingMeshes.forEach(mesh => {
+                if (mesh.material && mesh.material.emissive) {
+                    mesh.material.emissive.setHex(0x000000);
+                    mesh.material.emissiveIntensity = 0;
+                }
+            });
+
+            // Appliquer l'effet thermique orange vif
+            heatingMeshes.forEach(mesh => {
+                if (mesh.userData && mesh.userData.heatingActiveMat) {
+                    mesh.material = mesh.userData.heatingActiveMat;
+                    mesh.material.color.setHex(0xe65100);
+                } else if (mesh.material) {
+                    mesh.material.color.setHex(0xe65100);
+                    mesh.material.toneMapped = false;
+                }
+            });
+            if (typeof heatingLightL !== 'undefined') {
+                heatingLightL.intensity = 1.6;
+                heatingLightR.intensity = 1.6;
+            }
+
+            gsap.to(fluidMat, { opacity: 0.0, duration: 0.3 });
+
+            teleBox.style.display = 'block';
+            teleBox.className = 'telemetry-bar telemetry-heating';
+            updateTelemetryText();
+
+            // Cadrage fluide centré sur les films chauffants
+            gsap.to(camera.position, { x: 2.05, y: 1.35, z: 1.90, duration: 1.2, ease: "power2.out" });
+            gsap.to(controls.target, { x: 0.05, y: -0.02, z: 0.0, duration: 1.2, ease: "power2.out" });
+        }
+
+                function updateTelemetryText() {
+            if (activeBtmsMode === 'cooling') {
+                teleBox.innerHTML = currentLang === 'fr'
+                    ? "<strong>❄️ Circuit BTMS (Système de Gestion Thermique de Batterie) Actif :</strong><br>Débit caloporteur : 16.5 L/min (50/50 Eau + Éthylène glycol)<br>Régulation thermique : 24 °C (Delta T inter-cellules < 2.5 °C)<br><em>Solutions 1 & 2 : Auto-Lift 35% + Rayons X modules activés</em>"
+                    : "<strong>❄️ Active BTMS (Battery Thermal Management System) Loop:</strong><br>Coolant Flow: 16.5 L/min (50/50 Water + Ethylene glycol)<br>Thermal Regulation: 24 °C (Inter-cell Delta T < 2.5 °C)<br><em>Solutions 1 & 2: 35% Auto-Lift + Module X-Ray Ghosting active</em>";
+            } else if (activeBtmsMode === 'heating') {
+                teleBox.innerHTML = currentLang === 'fr'
+                    ? "<strong>🔥 Préchauffage Hivernal PTC (Coefficient de Température Positif) Actif :</strong><br>Films polyimide Kapton : 3.5 kW dissipés sous 350 V HT (Haute Tension)<br>Conditionnement : Rampe -10 °C ➔ +22 °C pour recharge rapide DCFC<br><em>Solutions 1 & 2 : Auto-Lift 35% + Rayons X modules activés</em>"
+                    : "<strong>🔥 Active PTC (Positive Temperature Coefficient) Winter Pre-heating:</strong><br>Polyimide Kapton Foils: 3.5 kW dissipation @ 350 V HV (High Voltage)<br>Conditioning: -10 °C ➔ +22 °C ramp for DC Fast Charging<br><em>Solutions 1 & 2: 35% Auto-Lift + Module X-Ray Ghosting active</em>";
+            }
+        }
+
+        // ============================================================
+        // 8. SÉLECTION ET SURBRILLANCE DES COMPOSANTS (CLIGNOTEMENT x5 & ZOOM)
+        // ============================================================
+        document.getElementById('compSelector').addEventListener('change', (e) => {
+            updateDisplay(e.target.value, true);
+            focusOnComponent(e.target.value, true);
+        });
+
+        function getMaterialsForComp(id) {
+            const matsSet = new Set();
+            const meshes = compMeshesById[id] || [];
+            meshes.forEach(obj => {
+                obj.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => matsSet.add(m));
+                        } else {
+                            matsSet.add(child.material);
+                        }
+                    }
+                });
+            });
+            return Array.from(matsSet);
+        }
+
+        let activeFlashTweens = [];
+
+        function flashComponent5Times(id) {
+            activeFlashTweens.forEach(t => t.kill());
+            activeFlashTweens = [];
+
+            const targetMats = getMaterialsForComp(id);
+            if (!targetMats.length) return;
+
+            targetMats.forEach(mat => {
+                if (!mat.emissive) return;
+
+                const origR = mat.emissive.r;
+                const origG = mat.emissive.g;
+                const origB = mat.emissive.b;
+
+                const flashR = 0.0, flashG = 0.90, flashB = 1.0;
+
+                // Exactement 5 clignotements complets (10 demi-cycles yoyo)
+                const tween = gsap.to(mat.emissive, {
+                    r: flashR, g: flashG, b: flashB,
+                    duration: 0.16,
+                    yoyo: true,
+                    repeat: 9,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        mat.emissive.setRGB(origR, origG, origB);
+                    }
+                });
+                activeFlashTweens.push(tween);
+            });
+        }
+
+        const COMPONENT_CAMERA_MAP = {
+            top_cover: { minExplode: 0, cam: { x: 2.30, y: 1.65, z: 2.30 }, target: { x: 0.0, y: 0.15, z: 0.0 } },
+            bms_board: { minExplode: 45, cam: { x: -0.55, y: 0.75, z: -1.25 }, target: { x: -0.22, y: 0.25, z: -0.65 } },
+            contactors: { minExplode: 45, cam: { x: 0.55, y: 0.75, z: -1.25 }, target: { x: 0.18, y: 0.25, z: -0.65 } },
+            fuse_pyro: { minExplode: 45, cam: { x: 0.75, y: 0.70, z: -1.20 }, target: { x: 0.38, y: 0.25, z: -0.65 } },
+            precharge_resistor: { minExplode: 45, cam: { x: 0.45, y: 0.70, z: -1.20 }, target: { x: 0.02, y: 0.25, z: -0.65 } },
+            current_shunt: { minExplode: 45, cam: { x: 0.50, y: 0.72, z: -1.10 }, target: { x: 0.18, y: 0.25, z: -0.55 } },
+            hv_cables: { minExplode: 45, cam: { x: 0.35, y: 0.75, z: -1.25 }, target: { x: 0.08, y: 0.25, z: -0.65 } },
+            cooling_plate: { minExplode: 35, cam: { x: 1.25, y: 1.15, z: 1.25 }, target: { x: 0.0, y: -0.10, z: 0.0 } },
+            heating_pad: { minExplode: 35, cam: { x: 0.95, y: 0.95, z: 0.95 }, target: { x: 0.0, y: -0.05, z: 0.0 } },
+            insulation_pad: { minExplode: 35, cam: { x: -0.95, y: 0.95, z: 0.95 }, target: { x: 0.0, y: -0.10, z: 0.0 } },
+            battery_module: { minExplode: 40, cam: { x: 1.15, y: 0.70, z: 0.85 }, target: { x: 0.22, y: 0.09, z: -0.20 } },
+            prismatic_cell: { minExplode: 70, cam: { x: 0.45, y: 0.45, z: 0.40 }, target: { x: -0.22, y: 0.05, z: 0.53 } },
+            busbars_omega: { minExplode: 65, cam: { x: 0.35, y: 0.55, z: 0.35 }, target: { x: -0.22, y: 0.14, z: 0.53 } },
+            fpc_harness: { minExplode: 50, cam: { x: 0.70, y: 0.65, z: 0.40 }, target: { x: 0.0, y: 0.15, z: 0.0 } },
+            daisy_chain: { minExplode: 40, cam: { x: 0.85, y: 0.70, z: 0.10 }, target: { x: 0.0, y: 0.15, z: 0.0 } },
+            slave_bms: { minExplode: 45, cam: { x: 0.15, y: 0.60, z: 0.20 }, target: { x: -0.22, y: 0.18, z: 0.53 } },
+            ntc_sensors: { minExplode: 50, cam: { x: -0.05, y: 0.45, z: 0.38 }, target: { x: -0.22, y: 0.10, z: 0.53 } },
+            hv_connector: { minExplode: 0, cam: { x: -0.18, y: 0.18, z: -1.15 }, target: { x: 0.00, y: 0.065, z: -0.845 } },
+            vent_valve: { minExplode: 10, cam: { x: 1.35, y: 0.25, z: 0.45 }, target: { x: 0.60, y: 0.02, z: 0.20 } },
+            coolant_ports: { minExplode: 0, cam: { x: 0.45, y: 0.18, z: -1.25 }, target: { x: 0.38, y: 0.055, z: -0.845 } },
+            coolant_internal_pipes: { minExplode: 35, cam: { x: 0.46, y: 0.45, z: -0.95 }, target: { x: 0.36, y: 0.02, z: -0.68 } },
+            lower_case: { minExplode: 40, cam: { x: 2.10, y: 1.20, z: 2.10 }, target: { x: 0.0, y: -0.15, z: 0.0 } },
+            seal_gasket: { minExplode: 30, cam: { x: 1.25, y: 0.80, z: 1.30 }, target: { x: 0.40, y: 0.25, z: 0.40 } },
+            fastening_bolts: { minExplode: 15, cam: { x: 1.15, y: 0.35, z: 0.80 }, target: { x: 0.62, y: -0.15, z: 0.40 } }
+        };
+
+        function focusOnComponent(id, forceExplode = false) {
+            const cfg = COMPONENT_CAMERA_MAP[id];
+            if (!cfg) return;
+
+            const currentExplode = parseFloat(slider.value);
+            // N'augmente le curseur d'éclatement que si l'utilisateur l'a choisi via le menu déroulant ou s'il est déjà en mode éclaté
+            if (forceExplode || !isPackClosedMode) {
+                if (cfg.minExplode > 0 && currentExplode < cfg.minExplode) {
+                    setExplodeWithAnim(cfg.minExplode);
+                    isPackClosedMode = false;
+                }
+            }
+
+            gsap.to(camera.position, {
+                x: cfg.cam.x, y: cfg.cam.y, z: cfg.cam.z,
+                duration: 1.2, ease: "power2.out"
+            });
+            gsap.to(controls.target, {
+                x: cfg.target.x, y: cfg.target.y, z: cfg.target.z,
+                duration: 1.2, ease: "power2.out"
+            });
+        }
+
+        // ============================================================
+        // 9. COMMUTATEUR DE LANGUE (FR / EN)
+        // ============================================================
+        document.getElementById('btnLangFR').addEventListener('click', () => {
+            currentLang = 'fr';
+            document.getElementById('btnLangFR').classList.add('active');
+            document.getElementById('btnLangEN').classList.remove('active');
+            applyLanguage();
+        });
+
+        document.getElementById('btnLangEN').addEventListener('click', () => {
+            currentLang = 'en';
+            document.getElementById('btnLangEN').classList.add('active');
+            document.getElementById('btnLangFR').classList.remove('active');
+            applyLanguage();
+        });
+
+        function applyLanguage() {
+            const isFr = currentLang === 'fr';
+            document.getElementById('uiMainTitle').innerText = isFr ? "Architecture d'un Pack Batterie EV" : "Inside an EV Battery Pack";
+            document.getElementById('secViewsTitle').innerText = isFr ? "1. Vues & Éclatement 3D" : "1. 3D Views & Explosion";
+            document.getElementById('viewAssembled').innerText = isFr ? "📦 Fermé" : "📦 Assembled";
+            document.getElementById('viewXRay').innerText = isFr ? "👻 Rayons X" : "👻 X-Ray Cutaway";
+            document.getElementById('viewExploded').innerText = isFr ? "💥 Éclaté" : "💥 Exploded";
+            const viewCellsEl = document.getElementById('viewCells');
+            if (viewCellsEl) viewCellsEl.innerText = isFr ? "🔬 Cellules" : "🔬 Modules & Cells";
+            document.getElementById('lblExplode').innerText = isFr ? "Décomposition continue :" : "Continuous Explosion:";
+            document.getElementById('lblAngleHeader').innerText = isFr ? "📐 Angles de Vue Caméra :" : "📐 Camera View Angles:";
+            document.getElementById('btnAngleIso').innerText = isFr ? "📐 Iso 3/4" : "📐 3/4 Iso";
+            document.getElementById('btnAngleTop').innerText = isFr ? "🔝 Dessus" : "🔝 Top-Down";
+            document.getElementById('btnAngleBms').innerText = isFr ? "⚡ BMS/HV" : "⚡ BMS/HV";
+            document.getElementById('btnAngleCells').innerText = isFr ? "🔬 Modules" : "🔬 Modules";
+            document.getElementById('btnAngleTray').innerText = isFr ? "🛡️ Châssis" : "🛡️ Chassis";
+            document.getElementById('secBtmsTitle').innerText = isFr ? "2. Gestion Thermique (BTMS)" : "2. Thermal Management (BTMS)";
+            document.getElementById('lblCooling').innerText = isFr ? "Refroidissement" : "Liquid Cooling";
+            document.getElementById('lblHeating').innerText = isFr ? "Préchauffage" : "Pre-heating";
+            document.getElementById('secCompTitle').innerText = isFr ? "3. Composants & Fiche Technique" : "3. Components & Data Sheet";
+            document.getElementById('packMetaPill').innerText = isFr ? "Pack fictif 49 kWh • 8 Modules • 96 Cellules Prismatiques (96S1P)" : "Fictitious 49 kWh Pack • 8 Modules • 96 Prismatic Cells (96S1P)";
+            const notePill = document.getElementById('packNotePill');
+            if (notePill) notePill.innerText = isFr ? "ℹ️ Exemple d’architecture, valeurs illustratives" : "ℹ️ Engineering architecture example, illustrative values";
+            const hintsTitle = document.getElementById('navHintsTitle');
+            if (hintsTitle) hintsTitle.innerText = isFr ? "🎮 Navigation 3D" : "🎮 3D Navigation";
+            const hRot = document.getElementById('navHintRotate');
+            if (hRot) hRot.innerText = isFr ? "Rotation : Clic G + glisser" : "Rotate: Left Click + Drag";
+            const hPan = document.getElementById('navHintPan');
+            if (hPan) hPan.innerText = isFr ? "Déplacement : Clic D + glisser" : "Pan: Right Click + Drag";
+            const hZoom = document.getElementById('navHintZoom');
+            if (hZoom) hZoom.innerText = isFr ? "Zoom : Molette" : "Zoom: Scroll Wheel";
+            const hSel = document.getElementById('navHintSelect');
+            if (hSel) hSel.innerText = isFr ? "Sélection : Clic pièce" : "Select: Click Part";
+
+            populateDropdowns();
+            updateDisplay(selectedCompId);
+            if (activeBtmsMode !== 'off') updateTelemetryText();
+        }
+
+        // ============================================================
+        // 11. PANNEAU ADMIN TECHNIQUE SÉCURISÉ (Option B : URL + SHA-256)
+        // ============================================================
+        const adminPanel = document.getElementById('admin-panel');
+        const adminSelect = document.getElementById('adminSelectComp');
+        const adminAuthModal = document.getElementById('admin-auth-modal');
+        const adminPasswordInput = document.getElementById('adminPasswordInput');
+        const adminAuthError = document.getElementById('adminAuthError');
+        const btnSubmitAuth = document.getElementById('btnSubmitAuth');
+        const btnCancelAuth = document.getElementById('btnCancelAuth');
+        const btnAdminLogout = document.getElementById('btnAdminLogout');
+
+        // Empreinte SHA-256 du mot de passe par défaut ("BatteryPack2026!")
+        const ADMIN_PASSWORD_HASH = "8d11594f05cacc04539eb1383b17975076f31d286781f6b88fe98fa8082746a8";
+
+        // Détection de la clé secrète dans l'URL (?mode=admin ou ?admin=true ou ?edit=true)
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAdminUrlAuthorized = urlParams.has('admin') || urlParams.has('edit') || urlParams.get('mode') === 'admin';
+
+        let failedAttempts = 0;
+        let isLockoutActive = false;
+
+        async function computeSHA256(text) {
+            const buffer = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function isUserAuthenticated() {
+            return sessionStorage.getItem('oem_pack_admin_authenticated') === 'true';
+        }
+
+        function showAuthModal() {
+            adminAuthModal.style.display = 'flex';
+            adminPasswordInput.value = '';
+            adminAuthError.style.display = 'none';
+            setTimeout(() => adminPasswordInput.focus(), 100);
+        }
+
+        function hideAuthModal() {
+            adminAuthModal.style.display = 'none';
+            adminPasswordInput.value = '';
+            adminAuthError.style.display = 'none';
+        }
+
+        function toggleAdminPanel(forceOpen = null) {
+            const shouldOpen = forceOpen !== null ? forceOpen : (adminPanel.style.display !== 'block');
+            if (shouldOpen) {
+                adminPanel.style.display = 'block';
+                fillAdminForm(selectedCompId);
+            } else {
+                adminPanel.style.display = 'none';
+            }
+        }
+
+        // Raccourci sécurisé : Ctrl + Shift + E
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+                e.preventDefault();
+                if (!isAdminUrlAuthorized) {
+                    console.info("Accès d'administration désactivé (clé d'activation URL requise).");
+                    return;
+                }
+                if (isUserAuthenticated()) {
+                    toggleAdminPanel();
+                } else {
+                    showAuthModal();
+                }
+            }
+        });
+
+        // Gestion de l'authentification
+        async function handleAuthSubmit() {
+            if (isLockoutActive) return;
+
+            const inputPwd = adminPasswordInput.value;
+            if (!inputPwd) {
+                adminAuthError.innerText = "Veuillez entrer un mot de passe.";
+                adminAuthError.style.display = 'block';
+                return;
+            }
+
+            const inputHash = await computeSHA256(inputPwd);
+            if (inputHash === ADMIN_PASSWORD_HASH) {
+                sessionStorage.setItem('oem_pack_admin_authenticated', 'true');
+                failedAttempts = 0;
+                hideAuthModal();
+                toggleAdminPanel(true);
+            } else {
+                failedAttempts++;
+                adminAuthError.style.display = 'block';
+                if (failedAttempts >= 3) {
+                    isLockoutActive = true;
+                    btnSubmitAuth.disabled = true;
+                    let remaining = 30;
+                    adminAuthError.innerText = `Nombre d'essais dépassé. Verrouillage temporaire (${remaining}s)...`;
+                    const timer = setInterval(() => {
+                        remaining--;
+                        if (remaining <= 0) {
+                            clearInterval(timer);
+                            isLockoutActive = false;
+                            failedAttempts = 0;
+                            btnSubmitAuth.disabled = false;
+                            adminAuthError.innerText = "Vous pouvez réécrire votre mot de passe.";
+                        } else {
+                            adminAuthError.innerText = `Nombre d'essais dépassé. Verrouillage temporaire (${remaining}s)...`;
+                        }
+                    }, 1000);
+                } else {
+                    adminAuthError.innerText = `Mot de passe incorrect (${3 - failedAttempts} essai(s) restant(s)).`;
+                }
+            }
+        }
+
+        btnSubmitAuth.addEventListener('click', handleAuthSubmit);
+        adminPasswordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleAuthSubmit();
+            if (e.key === 'Escape') hideAuthModal();
+        });
+        btnCancelAuth.addEventListener('click', hideAuthModal);
+
+        // Déconnexion / Verrouillage
+        if (btnAdminLogout) {
+            btnAdminLogout.addEventListener('click', () => {
+                sessionStorage.removeItem('oem_pack_admin_authenticated');
+                toggleAdminPanel(false);
+            });
+        }
+
+        document.getElementById('btnCloseAdmin').addEventListener('click', () => {
+            adminPanel.style.display = 'none';
+        });
+
+        adminSelect.addEventListener('change', (e) => {
+            fillAdminForm(e.target.value);
+            updateDisplay(e.target.value);
+        });
+
+        function fillAdminForm(id) {
+            const c = getComp(id);
+            adminSelect.value = id;
+            document.getElementById('adminNameFR').value = c.name_fr;
+            document.getElementById('adminNameEN').value = c.name_en;
+            document.getElementById('adminMaterialFR').value = c.material_fr;
+            document.getElementById('adminMaterialEN').value = c.material_en;
+            document.getElementById('adminSpecsFR').value = JSON.stringify(c.specs_fr || {}, null, 2);
+            document.getElementById('adminSpecsEN').value = JSON.stringify(c.specs_en || {}, null, 2);
+        }
+
+        document.getElementById('btnAdminSave').addEventListener('click', () => {
+            if (!isUserAuthenticated()) return;
+            const c = getComp(adminSelect.value);
+            c.name_fr = document.getElementById('adminNameFR').value;
+            c.name_en = document.getElementById('adminNameEN').value;
+            c.material_fr = document.getElementById('adminMaterialFR').value;
+            c.material_en = document.getElementById('adminMaterialEN').value;
+            try {
+                c.specs_fr = JSON.parse(document.getElementById('adminSpecsFR').value);
+                c.specs_en = JSON.parse(document.getElementById('adminSpecsEN').value);
+            } catch (err) {
+                alert("Format JSON invalide dans les spécifications.");
+                return;
+            }
+            updateDisplay(c.id);
+            populateDropdowns();
+            adminSelect.value = c.id;
+            alert("Spécifications et traductions mises à jour.");
+        });
+
+        document.getElementById('btnAdminExport').addEventListener('click', () => {
+            if (!isUserAuthenticated()) return;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(packMetadata, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", "battery_pack_metadata.json");
+            document.body.appendChild(dl);
+            dl.click();
+            dl.remove();
+        });
+
+        // ============================================================
+        // 12. RAYCASTER & INTERACTIONS SOURIS
+        // ============================================================
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('tooltip');
+
+        function findCompId(obj) {
+            while (obj) {
+                if (obj.userData && obj.userData.compId) return obj.userData.compId;
+                obj = obj.parent;
+            }
+            return null;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(interactiveObjects, true);
+            const visibleHit = hits.find(h => isObjectActuallyVisible(h.object));
+
+            if (visibleHit) {
+                const compId = findCompId(visibleHit.object);
+                if (compId && packMetadata) {
+                    const c = getComp(compId);
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${e.clientX}px`;
+                    tooltip.style.top = `${e.clientY}px`;
+                    tooltip.innerText = currentLang === 'fr' ? `[${c.number}] ${c.name_fr}` : `[${c.number}] ${c.name_en}`;
+                    return;
+                }
+            }
+            tooltip.style.display = 'none';
+        });
+
+        let pointerDownX = 0;
+        let pointerDownY = 0;
+        let isDraggingOrbit = false;
+
+        window.addEventListener('pointerdown', (e) => {
+            pointerDownX = e.clientX;
+            pointerDownY = e.clientY;
+            isDraggingOrbit = false;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 6) {
+                isDraggingOrbit = true;
+                // Arrêter toute animation GSAP en cours si l'utilisateur prend le contrôle de la caméra manuellement
+                gsap.killTweensOf(camera.position);
+                gsap.killTweensOf(controls.target);
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            // Si l'utilisateur effectuait une rotation ou un déplacement 3D, ne pas sélectionner de composant
+            if (isDraggingOrbit) return;
+
+            // Ignorer si le clic a eu lieu sur un panneau d'interface utilisateur
+            if (e.target && e.target.closest && (e.target.closest('#ui-overlay') || e.target.closest('#admin-panel') || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT')) {
+                return;
+            }
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(interactiveObjects, true);
+            const visibleHit = hits.find(h => isObjectActuallyVisible(h.object));
+
+            if (visibleHit) {
+                const compId = findCompId(visibleHit.object);
+                if (compId && packMetadata) {
+                    updateDisplay(compId, true);
+                    focusOnComponent(compId, false); // Ne force pas l'éclatement si le pack est en mode fermé
+                    if (adminPanel.style.display === 'block') fillAdminForm(compId);
+                }
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============================================================
+        // 13. BOUCLE DE RENDU 60 FPS
+        // ============================================================
+        let clock = new THREE.Clock();
+
+        function renderLoop() {
+            requestAnimationFrame(renderLoop);
+            controls.update();
+
+            const time = Date.now() * 0.003;
+
+            // Animation caloporteur en mode refroidissement (liquide & lueur cobalt dans la serpentine en boucle fermée)
+            if (activeBtmsMode === 'cooling') {
+                const py = (coolingPlateMesh ? coolingPlateMesh.position.y : -0.065) + 0.015;
+                const pos = fluidGeometry.attributes.position.array;
+                for (let i = 0; i < FLUID_PARTICLE_COUNT; i++) {
+                    fluidProgress[i] = (fluidProgress[i] + fluidSpeeds[i]) % 1.0;
+                    const pt = serpentineCurve.getPointAt(fluidProgress[i]);
+                    pos[i * 3 + 0] = pt.x;
+                    pos[i * 3 + 1] = py;
+                    pos[i * 3 + 2] = pt.z;
+                }
+                fluidGeometry.attributes.position.needsUpdate = true;
+
+                const pulse = (Math.sin(time * 2.5) + 1) * 0.5;
+                coolingMeshes.forEach(mesh => {
+                    if (mesh.material && mesh.material.emissive) {
+                        mesh.material.emissive.setHex(0x0044ff); // Bleu cobalt électrique prononcé
+                        mesh.material.emissiveIntensity = 0.70 + pulse * 0.75;
+                    }
+                });
+            } 
+            // Animation préchauffage en mode chauffage (lueur thermique orange foncé #e65100 très contrastée)
+            else if (activeBtmsMode === 'heating') {
+                const heatPulse = (Math.sin(time * 3.5) + 1) * 0.5;
+                heatingMeshes.forEach(mesh => {
+                    if (mesh.material) {
+                        // Respire subtilement entre orange foncé #e65100 (RGB 0.90, 0.32, 0.0) et orange thermique vif #ff6d00 (RGB 1.0, 0.42, 0.0)
+                        mesh.material.color.setRGB(0.90 + 0.10 * heatPulse, 0.32 + 0.10 * heatPulse, 0.0);
+                    }
+                });
+                if (typeof heatingLightL !== 'undefined') {
+                    heatingLightL.intensity = 1.1 + heatPulse * 0.5;
+                    heatingLightR.intensity = 1.1 + heatPulse * 0.5;
+                }
+            }
+
+            // La rotation est 100% libre et sous le contrôle de l'utilisateur (pas de dérive figée)
+            renderer.render(scene, camera);
+        }
+
+        // Lancement
+        loadMetadata();
+        loadPackGLB();
+        renderLoop();
+    </script>
+</body>
+</html>

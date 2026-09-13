@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <!-- Dégradé corps de batterie : vert menthe électrique vers vert lime lumineux -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#80f5a2"/>
+      <stop offset="35%" stop-color="#99f88d"/>
+      <stop offset="70%" stop-color="#bdfa68"/>
+      <stop offset="100%" stop-color="#d4fb52"/>
+    </linearGradient>
+
+    <!-- Dégradé culot inférieur violet / lilas métallique -->
+    <linearGradient id="bottomGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a082cd"/>
+      <stop offset="50%" stop-color="#b89fe0"/>
+      <stop offset="100%" stop-color="#8c6ebb"/>
+    </linearGradient>
+
+    <!-- Dégradé borne supérieure blanche / argentée -->
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#edf2f7"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+
+    <!-- Lueur diffuse blanche pour les deux pastilles d'énergie -->
+    <radialGradient id="glowDot" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1.0"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </radialGradient>
+
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <clipPath id="bodyClip">
+      <rect x="14" y="10" width="36" height="50" rx="8" ry="8"/>
+    </clipPath>
+  </defs>
+
+  <!-- Ombre portée douce sous la batterie -->
+  <ellipse cx="32" cy="61" rx="16" ry="2.5" fill="rgba(0,0,0,0.35)"/>
+
+  <!-- Borne positive supérieure (plot métallique blanc/argenté) -->
+  <rect x="25" y="4" width="14" height="8" rx="3.5" ry="3.5" fill="url(#capGrad)"/>
+
+  <!-- Corps principal de la cellule (forme arrondie) -->
+  <g clip-path="url(#bodyClip)">
+    <!-- Fond vert menthe / lime énergique -->
+    <rect x="14" y="10" width="36" height="50" fill="url(#bodyGrad)"/>
+
+    <!-- Bande inférieure violette / lilas métallique conforme à la photo -->
+    <rect x="14" y="52" width="36" height="8" fill="url(#bottomGrad)"/>
+    <!-- Ligne de séparation fine chromée -->
+    <line x1="14" y1="52" x2="50" y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="0.8"/>
+
+    <!-- Deux pastilles blanches lumineuses centrales conformes à la photo -->
+    <!-- Pastille supérieure -->
+    <circle cx="32" cy="24" r="6" fill="url(#glowDot)" filter="url(#softGlow)"/>
+    <circle cx="32" cy="24" r="3" fill="#ffffff"/>
+
+    <!-- Pastille inférieure -->
+    <circle cx="32" cy="40" r="6" fill="url(#glowDot)" filter="url(#softGlow)"/>
+    <circle cx="32" cy="40" r="3" fill="#ffffff"/>
+
+    <!-- Reflet spéculaire doux sur le flanc gauche -->
+    <path d="M 16 12 Q 18 35 16 58" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Liseré extérieur subtil -->
+  <rect x="14" y="10" width="36" height="50" rx="8" ry="8" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.0"/>
+</svg>
