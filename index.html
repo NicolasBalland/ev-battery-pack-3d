@@ -473,7 +473,7 @@
         scene.background = new THREE.Color(0x07090e); // Studio automotive dark neutral - contraste pur
 
         const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(3.0, 2.2, 3.2);
+        camera.position.set(1.60, 1.15, 1.80);
         window.camera = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -489,8 +489,9 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.06;
-        controls.target.set(0.15, 0.05, 0); // Décalé vers la droite pour centrer dans l'espace utile
+        controls.target.set(-0.14, 0.08, 0.14); // Parfaitement centré dans l'espace utile à droite du panneau
         controls.maxPolarAngle = Math.PI / 2 + 0.05;
+        window.controls = controls;
 
         const grid = new THREE.GridHelper(8, 24, 0x00e5ff, 0x182438);
         grid.position.y = -0.50;
@@ -1607,8 +1608,8 @@
             setCoverVisibility(true);
             setXRay(false);
             setExplodeWithAnim(0);
-            gsap.to(camera.position, { x: 2.8, y: 2.0, z: 3.0, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.15, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 1.60, y: 1.15, z: 1.80, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.14, y: 0.08, z: 0.14, duration: 1.2, ease: "power2.inOut" });
         });
 
         // [👻 Rayons X / Écorché]
@@ -1620,8 +1621,8 @@
             setCoverVisibility(true);
             setXRay(true);
             setExplodeWithAnim(0);
-            gsap.to(camera.position, { x: 2.6, y: 1.8, z: 2.8, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.15, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 1.60, y: 1.15, z: 1.80, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.14, y: 0.08, z: 0.14, duration: 1.2, ease: "power2.inOut" });
         });
 
         // [💥 Vue Éclatée Grande Amplitude]
@@ -1633,8 +1634,8 @@
             setCoverVisibility(true);
             setXRay(false);
             setExplodeWithAnim(100);
-            gsap.to(camera.position, { x: 3.6, y: 3.0, z: 3.8, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.15, y: 0.18, z: 0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 2.00, y: 1.65, z: 2.20, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.15, y: 0.20, z: 0.15, duration: 1.2, ease: "power2.inOut" });
         });
 
         // ============================================================
@@ -1648,17 +1649,17 @@
             clearActiveAngleButtons();
             document.getElementById('btnAngleIso').classList.add('active');
             restoreCoverVisibilityIfNeeded();
-            gsap.to(camera.position, { x: 3.0, y: 2.2, z: 3.2, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.20, y: 0.05, z: 0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 1.60, y: 1.15, z: 1.80, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.14, y: 0.08, z: 0.14, duration: 1.2, ease: "power2.inOut" });
         });
 
         document.getElementById('btnAngleTop').addEventListener('click', () => {
             clearActiveAngleButtons();
             document.getElementById('btnAngleTop').classList.add('active');
             restoreCoverVisibilityIfNeeded();
-            if (parseFloat(slider.value) < 20) setXRay(true);
-            gsap.to(camera.position, { x: 0.01, y: 3.4, z: 0.01, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 1.2, ease: "power2.inOut" });
+            setXRay(true); // Toujours mettre en transparence pour voir l'architecture intérieure en vue de dessus
+            gsap.to(camera.position, { x: -0.36, y: 2.25, z: 0.001, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.36, y: 0.0, z: 0.0, duration: 1.2, ease: "power2.inOut" });
         });
 
         document.getElementById('btnAngleBms').addEventListener('click', () => {
@@ -1668,8 +1669,8 @@
                 savedCoverVisibility = isCoverVisible;
             }
             setCoverVisibility(false); // Masque le couvercle pour dégager entièrement la baie technique
-            gsap.to(camera.position, { x: 0.24, y: 0.45, z: -1.15, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.06, y: 0.10, z: -0.65, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 0.38, y: 0.68, z: 0.05, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.05, y: 0.06, z: -0.65, duration: 1.2, ease: "power2.inOut" });
         });
 
         document.getElementById('btnAngleCells').addEventListener('click', () => {
@@ -1680,8 +1681,8 @@
             }
             setCoverVisibility(false); // Dégage le dessus des modules
             if (parseFloat(slider.value) < 30) setExplodeWithAnim(45);
-            gsap.to(camera.position, { x: 0.70, y: 0.65, z: 0.40, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: -0.20, y: 0.10, z: 0.10, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 1.10, y: 0.85, z: 1.05, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.10, y: 0.15, z: 0.15, duration: 1.2, ease: "power2.inOut" });
         });
 
         document.getElementById('btnAngleTray').addEventListener('click', () => {
@@ -1689,8 +1690,8 @@
             document.getElementById('btnAngleTray').classList.add('active');
             restoreCoverVisibilityIfNeeded();
             if (parseFloat(slider.value) < 35) setExplodeWithAnim(45);
-            gsap.to(camera.position, { x: 2.2, y: 0.30, z: 0.0, duration: 1.2, ease: "power2.inOut" });
-            gsap.to(controls.target, { x: 0.0, y: -0.10, z: 0.0, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(camera.position, { x: 1.80, y: 0.45, z: 0.30, duration: 1.2, ease: "power2.inOut" });
+            gsap.to(controls.target, { x: -0.10, y: -0.05, z: 0.05, duration: 1.2, ease: "power2.inOut" });
         });
 
         // ============================================================
